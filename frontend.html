@@ -424,14 +424,16 @@ async function reservarTurno(clave, cancha, senia, nombre, telefono) {
     const res = await fetch(`${backendUrl}/crear-preferencia`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        complejoId: complejoSeleccionado, // ID del complejo (slug)
-        clave,                             // clave única del turno
-        cancha,                            // nombre de la cancha
-        senia: monto,                      // monto de la seña
-        nombre: nombre.trim(),
-        telefono: telefono.trim()
-      })
+     body: JSON.stringify({
+  complejoId: complejoSeleccionado, // ID del complejo (slug)
+  clave,                             // clave única del turno
+  cancha,                            // nombre de la cancha
+  senia: monto,                      // seguimos enviando senia
+  precio: monto,                     // <-- agregar esto para satisfacer el server actual
+  titulo: `Seña de reserva - ${cancha}`,
+  nombre: nombre.trim(),
+  telefono: telefono.trim()
+})
     });
 
     const data = await res.json();
@@ -461,6 +463,7 @@ async function reservarTurno(clave, cancha, senia, nombre, telefono) {
 </script>
 </body>
 </html>
+
 
 
 
