@@ -1,0 +1,68 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <title>Reserva confirmada</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <style>
+    body {
+      font-family: 'Segoe UI', sans-serif;
+      background-color: #f0fff0;
+      text-align: center;
+      padding: 40px;
+    }
+    h1 { color: #00aa55; margin-bottom: 8px; }
+    p  { font-size: 18px; margin: 6px 0; }
+    button{
+      margin-top:18px; padding:10px 16px; border:none; border-radius:10px;
+      background:#00aa55; color:#fff; cursor:pointer; font-size:16px;
+    }
+    small{color:#2b6e44; display:block; margin-top:8px;}
+  </style>
+</head>
+<body>
+  <h1>¡Tu pago fue exitoso! 🎉</h1>
+  <p>Estamos confirmando tu reserva automáticamente.</p>
+  <p id="msg">En unos segundos ya debería verse como <strong>Reservado</strong> en el calendario.</p>
+  <button id="btnVolver">Volver al complejo</button>
+  <small>Si no lo ves enseguida, recargá la página del complejo luego de unos segundos.</small>
+
+  <script>
+    // ✅ Importante:
+    // Esta página ya NO guarda la reserva. La confirmación real la hace el WEBHOOK en tu backend.
+    // Acá solo limpiamos datos locales y damos un botón para volver al complejo.
+
+    // Intentamos armar un link de vuelta al complejo usando la "clave" guardada antes del pago.
+    // Formato esperado de clave: `${slug}-${cancha}-${Dia}-${HH:MM}`
+    let volverA = "inicio.html"; // fallback
+    try {
+      const clave = localStorage.getItem("reserva_clave");
+      if (clave && typeof clave === "string") {
+        const slug = clave.split("-")[0];
+        if (slug) volverA = `frontend.html?complejo=${encodeURIComponent(slug)}`;
+      }
+    } catch(_) {}
+
+    // Limpiamos posibles restos para evitar duplicaciones en futuros pagos
+    try {
+      localStorage.removeItem("reserva_clave");
+      localStorage.removeItem("reserva_nombre");
+      localStorage.removeItem("reserva_telefono");
+    } catch(_) {}
+
+    // Botón "Volver al complejo"
+    document.getElementById("btnVolver").addEventListener("click", () => {
+      location.href = volverA;
+    });
+
+    // Mensaje amable luego de un ratito
+    setTimeout(() => {
+      const el = document.getElementById("msg");
+      if (el) el.textContent = "Listo. Ya podés volver al complejo para ver el turno marcado como Reservado.";
+    }, 1200);
+  </script>
+</body>
+</html>
+
+
+
