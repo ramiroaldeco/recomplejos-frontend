@@ -269,6 +269,21 @@ async function guardarDatos() {
   // Guardar localmente el ID para la sección OAuth
   localStorage.setItem("complejoId", id);
   pintarEstadoMP();
+  <script>
+// al final del init, donde ya llamás a pintarEstadoMP()
+window.addEventListener("load", () => {
+  const q = new URLSearchParams(location.search);
+  const id = q.get("complejo");
+  if (id) { const idEl = document.querySelector("#id"); if (idEl && !idEl.value) idEl.value = id; }
+  pintarEstadoMP();
+
+  if (q.get("mp") === "ok") {
+    const msg = document.getElementById("msgDatos");
+    if (msg) { msg.textContent = "Mercado Pago conectado ✅ (no olvides Guardar datos)"; msg.className = "ok"; }
+  }
+});
+</script>
+
 }
 
 /* ====== OAUTH MERCADO PAGO ====== */
@@ -384,6 +399,7 @@ window.addEventListener("load", () => {
 </script>
 </body>
 </html>
+
 
 
 
