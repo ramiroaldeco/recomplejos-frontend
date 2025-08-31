@@ -245,45 +245,52 @@ async function idDisponible(id) {
 
 async function guardarDatos() {
   const id = $("#id").value.trim();
-  const msg = $("#msgDatos"); 
-  msg.textContent = ""; msg.className = "";
+  const msg = $("#msgDatos");
+  msg.textContent = ""; 
+  msg.className = "";
 
   if (!id) { msg.textContent = "Falta el ID"; msg.className = "err"; return; }
   if (!validarSlug(id)) { msg.textContent = "ID inválido. Usá solo letras, números, - y _"; msg.className = "err"; return; }
 
-  // Si ya existe, avisamos que se actualizará
-  const existe = !(await idDisponible(id));
-  const actuales = await fetch(`${backend}/datos_complejos?t=${Date.now()}`).then(r => r.json());
-  const nuevo = payloadDatos();
-  const merged = { ...actuales, ...nuevo };
-
-  await fetch(`${backend}/guardarDatos`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(merged)
-  });
-
-  msg.textContent = existe ? "Datos actualizados ✅" : "Datos del complejo guardados ✅";
-  msg.className = "ok";
-
   // Guardar localmente el ID para la sección OAuth
   localStorage.setItem("complejoId", id);
-  pintarEstadoMP();
-  <script>
-// al final del init, donde ya llamás a pintarEstadoMP()
-window.addEventListener("load", () => {
-  const q = new URLSearchParams(location.search);
-  const id = q.get("complejo");
-  if (id) { const idEl = document.querySelector("#id"); if (idEl && !idEl.value) idEl.value = id; }
-  pintarEstadoMP();
 
-  if (q.get("mp") === "ok") {
-    const msg = document.getElementById("msgDatos");
-    if (msg) { msg.textContent = "Mercado Pago conectado ✅ (no olvides Guardar datos)"; msg.className = "ok"; }
+  try {
+    // Traigo lo actual del backend (con cache-buster)
+    const actuales = await fetch(`${backend}/datos_complejos?t=${Date.now()}`).then(r => r.json());
+    const nuevo = payloadDatos();
+    const merged = { ...actuales, ...nuevo };
+
+    // Guardo en el backend
+    const resp = await fetch(`${backend}/guardarDatos`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(merged)
+    });
+
+    if (!resp.ok) {
+      msg.textContent = "No se pudo guardar en el servidor (HTTP " + resp.status + ").";
+      msg.className = "err";
+      return;
+    }
+
+    // Verificación inmediata: vuelvo a leer del backend y chequeo que esté el ID
+    const verif = await fetch(`${backend}/datos_complejos?t=${Date.now()}`).then(r => r.json());
+    if (verif[id]) {
+      msg.textContent = "Datos del complejo guardados ✅";
+      msg.className = "ok";
+    } else {
+      msg.textContent = "Guardado enviado pero el servidor no refleja el cambio. Probá de nuevo (Ctrl+F5) o revisá logs.";
+      msg.className = "err";
+    }
+
+    refrescarPreview();
+    pintarEstadoMP();
+  } catch (e) {
+    console.error(e);
+    msg.textContent = "Error de red/JS al guardar.";
+    msg.className = "err";
   }
-});
-</script>
-
 }
 
 /* ====== OAUTH MERCADO PAGO ====== */
@@ -391,14 +398,28 @@ armarServicios();
 agregarCancha();        // una cancha de ejemplo
 refrescarPreview();
 window.addEventListener("load", () => {
-  // si viene ?complejo= en la URL, lo llena en el input
-  const q = new URLSearchParams(location.search).get("complejo");
-  if (q) { const idEl = $("#id"); if (idEl && !idEl.value) idEl.value = q; }
+  // si viene ?complejo= en la URL, lo llena en el input y lo guarda
+  const q = new URLSearchParams(location.search);
+  const slug = q.get("complejo");
+  if (slug) {
+    const idEl = $("#id");
+    if (idEl && !idEl.value) idEl.value = slug;
+    localStorage.setItem("complejoId", slug);
+  }
+
+  // si volvió del OAuth con éxito
+  if (q.get("mp") === "ok") {
+    const msg = document.getElementById("msgDatos");
+    if (msg) { msg.textContent = "Mercado Pago conectado ✅ (no olvides Guardar datos)"; msg.className = "ok"; }
+  }
+
   pintarEstadoMP();
 });
 </script>
 </body>
 </html>
+
+
 
 
 
