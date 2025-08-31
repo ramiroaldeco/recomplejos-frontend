@@ -54,7 +54,7 @@
     const deporte = document.getElementById("deporte").value;
 
     try {
-      const res = await fetch(`${backendUrl}/datos_complejos`);
+      const res = await fetch(`${backendUrl}/datos_complejos?t=${Date.now()}`);
       const datos = await res.json();
 
       complejos = Object.entries(datos).map(([clave, info]) => ({
