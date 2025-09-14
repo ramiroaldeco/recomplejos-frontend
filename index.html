@@ -3,6 +3,8 @@
 <head>
   <meta charset="UTF-8">
   <title>Reserva tu cancha</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+
   <script>
   const token = "pk.eyJ1IjoicmFtaXJvb28iLCJhIjoiY21jeGkwdG5jMGMyNDJsb2t6aDdycjV5cSJ9.go0w61Fx98bfHbp_V4K0pg";
   const backendUrl = "https://recomplejos-backend.onrender.com";
@@ -47,14 +49,37 @@
     return R * c;
   }
 
+  /* ===== Loader helpers + precalentado Render ===== */
+  function showLoader(msg = "Cargando…"){
+    const o = document.getElementById("loadingOverlay");
+    const m = document.getElementById("loadingMsg");
+    if (m) m.textContent = msg;
+    if (o) o.classList.add("show");
+  }
+  function hideLoader(){
+    const o = document.getElementById("loadingOverlay");
+    if (o) o.classList.remove("show");
+  }
+  async function prewarmBackend(){
+    try{
+      showLoader("Iniciando servidor…");
+      const r = await fetch(`${backendUrl}/datos_complejos?t=${Date.now()}`, { cache: "no-store" });
+      await r.json();
+    }catch(_){/* noop */}
+    hideLoader();
+  }
+  window.addEventListener("load", prewarmBackend);
+
+  /* ===== Buscar canchas (misma lógica + loader) ===== */
   async function buscarCanchas() {
     const lista = document.getElementById("listaCanchas");
     lista.innerHTML = "";
 
     const deporte = document.getElementById("deporte").value;
 
+    showLoader("Buscando canchas…");
     try {
-      const res = await fetch(`${backendUrl}/datos_complejos?t=${Date.now()}`);
+      const res = await fetch(`${backendUrl}/datos_complejos?t=${Date.now()}`, { cache: "no-store" });
       const datos = await res.json();
 
       complejos = Object.entries(datos).map(([clave, info]) => ({
@@ -71,7 +96,9 @@
       if (ciudadSeleccionadaCoords) {
         const [lng, lat] = ciudadSeleccionadaCoords;
         resultados.forEach(c => {
-          c.distancia = calcularDistancia(lat, lng, c.lat, c.lng);
+          if (c.lat != null && c.lng != null) {
+            c.distancia = calcularDistancia(lat, lng, c.lat, c.lng);
+          }
         });
         resultados.sort((a, b) => (a.distancia ?? Infinity) - (b.distancia ?? Infinity));
       }
@@ -85,14 +112,23 @@
       });
 
       if (resultados.length === 0) {
-        lista.innerHTML = "<p>No hay complejos registrados.</p>";
+        lista.innerHTML = "<p style='grid-column:1/-1;color:#8a8f98;text-align:center'>No hay complejos registrados.</p>";
       }
     } catch (error) {
       console.error("Error al cargar complejos:", error);
-      lista.innerHTML = "<p style='color:red;'>Error al cargar complejos desde el servidor.</p>";
+      lista.innerHTML = "<p style='grid-column:1/-1;color:#b42318;text-align:center'>Error al cargar complejos desde el servidor.</p>";
+    } finally {
+      hideLoader();
     }
   }
 </script>
+
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&display=swap" rel="stylesheet">
+<style>
+  body, button, input, select { font-family: Inter, system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif; }
+</style>
 
   <link href='https://api.mapbox.com/mapbox-gl-js/v2.15.0/mapbox-gl.css' rel='stylesheet' />
   <style>
@@ -232,9 +268,489 @@
     .club-card p {
       color: #555;
     }
+/* ===== Responsive móvil - inicio.html ===== */
+@media (max-width: 768px) {
+  header { padding: 12px 16px; gap: 8px; }
+  header img { height: 32px; }
+  header button { padding: 8px 10px; font-size: 14px; }
+
+  .hero { height: 240px; padding: 0 16px; }
+  .hero h1 { font-size: 28px; }
+  .hero p { font-size: 14px; margin: 8px 0 18px; }
+
+  .buscador {
+    margin: -24px 12px 24px;
+    padding: 14px;
+    gap: 8px;
+  }
+  .buscador input, .buscador select { width: 100%; }
+  .buscador button { width: 100%; }
+
+  #sugerencias {
+    position: static; /* evita que se corte en pantallas chicas */
+    width: 100%;
+    top: auto;
+    max-height: 160px;
+  }
+
+  .resultados {
+    grid-template-columns: 1fr;
+    gap: 12px;
+    padding: 0 12px 24px;
+  }
+  .club-card { padding: 14px; }
+}
+
+@media (max-width: 420px) {
+  .hero h1 { font-size: 24px; }
+  .hero p { font-size: 13px; }
+}
+/* =========================
+   LOOK & FEEL PREMIUM+ (solo estilos)
+   ========================= */
+:root{
+  --bg: #f6f8f7;
+  --surface: #ffffff;
+  --text: #0e1713;
+  --muted: #5b6a62;
+  --brand: #0b8457;       /* teal principal */
+  --brand-2: #06c184;     /* teal brillante */
+  --accent: #b6ff6b;      /* lima acento */
+  --ring: rgba(11,132,87,.28);
+  --shadow: 0 6px 22px rgba(0,0,0,.08);
+  --shadow-2: 0 16px 40px rgba(11,132,87,.16);
+}
+
+/* Fondo con profundidad sutil */
+body{
+  background:
+    radial-gradient(1200px 420px at 120% -10%, #e9fff4 0%, transparent 55%),
+    radial-gradient(900px 520px at -10% 120%, #eef7ff 0%, transparent 55%),
+    var(--bg);
+  color: var(--text);
+}
+
+/* HEADER glass + sticky */
+header{
+  position: sticky; top: 0; z-index: 50;
+  backdrop-filter: saturate(140%) blur(10px);
+  background: rgba(255,255,255,.72);
+  border-bottom: 1px solid rgba(12,78,52,.06);
+  box-shadow: 0 2px 10px rgba(0,0,0,.04);
+}
+
+/* Botones header → gradiente + micro-animación */
+header button{
+  background: linear-gradient(180deg, var(--brand-2), var(--brand));
+  border: 1px solid rgba(255,255,255,.6);
+  color: #fff;
+  box-shadow: var(--shadow);
+  transition: transform .08s ease, box-shadow .15s ease, filter .15s ease;
+}
+header button:hover{ transform: translateY(-1px); filter: brightness(1.03); box-shadow: var(--shadow-2); }
+header button:active{ transform: translateY(0); }
+
+/* HERO con overlay y título en gradiente animado */
+.hero{
+  position: relative;
+  height: 460px;
+  border-bottom-left-radius: 24px;
+  border-bottom-right-radius: 24px;
+  overflow: hidden;
+}
+.hero::after{
+  content:"";
+  position:absolute; inset:0;
+  background:
+    linear-gradient(90deg, rgba(6, 28, 22, .62) 0%, rgba(6, 28, 22, .28) 55%, rgba(6, 28, 22, 0) 80%),
+    radial-gradient(720px 320px at 0% 0%, rgba(11,132,87,.35), transparent 60%);
+}
+@keyframes shine {
+  0% { background-position: 0% 50%;}
+  50%{ background-position: 100% 50%;}
+  100%{ background-position: 0% 50%;}
+}
+.hero h1{
+  font-weight: 800; letter-spacing:.2px; margin: 0 0 8px;
+  background: linear-gradient(90deg, #ffffff, #d7ffe6, #ffffff);
+  -webkit-background-clip: text; background-clip: text; color: transparent;
+  background-size: 200% 200%;
+  animation: shine 10s ease-in-out infinite;
+  text-shadow: 0 2px 18px rgba(0,0,0,.35);
+}
+.hero p{
+  color: #e9f7f0; margin-top: 6px;
+  text-shadow: 0 1px 12px rgba(0,0,0,.35);
+}
+
+/* BUSCADOR: glass + foco reactivo */
+.buscador{
+  border: 1px solid rgba(11,132,87,.12);
+  background: rgba(255,255,255,.86);
+  backdrop-filter: blur(10px);
+  box-shadow: var(--shadow);
+}
+.buscador input, .buscador select{
+  border: 1px solid rgba(12,78,52,.12);
+  outline: none;
+}
+.buscador input:focus, .buscador select:focus{
+  border-color: var(--brand);
+  box-shadow: 0 0 0 3px var(--ring);
+}
+.buscador button{
+  background: linear-gradient(180deg, var(--brand-2), var(--brand));
+  border: none; color:#fff;
+  box-shadow: var(--shadow-2);
+  transition: transform .08s ease, filter .15s ease;
+}
+.buscador button:hover{ filter: brightness(1.05); }
+.buscador button:active{ transform: translateY(1px); }
+
+/* Sugerencias */
+#sugerencias{
+  border: 1px solid rgba(12,78,52,.12);
+  box-shadow: var(--shadow);
+  border-radius: 10px;
+}
+#sugerencias li{ border-bottom: 1px solid rgba(0,0,0,.04); }
+#sugerencias li:hover{ background: #f2fbf7; }
+
+/* CARDS más “product” */
+.resultados{ gap: 24px; }
+.club-card{
+  background: var(--surface);
+  border: 1px solid rgba(12,78,52,.08);
+  border-radius: 14px;
+  box-shadow: var(--shadow);
+  transition: transform .15s ease, box-shadow .2s ease, border-color .2s ease, background .2s ease;
+}
+.club-card:hover{
+  transform: translateY(-2px);
+  border-color: rgba(11,132,87,.25);
+  box-shadow: 0 18px 48px rgba(11,132,87,.14);
+  background: linear-gradient(180deg, #ffffff, #f9fffb);
+}
+.club-card h3{ font-weight: 700; }
+.club-card p{ color: var(--muted); }
+
+/* Responsive tweaks */
+@media (max-width: 768px){
+  .hero{ height: 300px; border-radius: 0; }
+  .hero h1{ font-size: 28px; }
+  .hero p{ font-size: 14px; }
+  .buscador{ margin: -28px 12px 24px; padding: 14px; }
+  .resultados{ grid-template-columns: 1fr; gap: 14px; padding: 0 12px 28px; }
+  header button{ font-size: 14px; padding: 8px 10px; }
+}
+
+/* =========================
+   MODO OSCURO (automático)
+   ========================= */
+@media (prefers-color-scheme: dark){
+  :root{
+    --bg: #0e1311;
+    --surface: #121815;
+    --text: #eaf5ef;
+    --muted: #a8b6af;
+    --ring: rgba(182,255,107,.18);
+  }
+  body{
+    background:
+      radial-gradient(1100px 380px at 120% -10%, rgba(11,132,87,.12) 0%, transparent 55%),
+      radial-gradient(900px 520px at -10% 120%, rgba(182,255,107,.08) 0%, transparent 55%),
+      var(--bg);
+  }
+  header{
+    background: rgba(18,24,21,.66);
+    border-bottom-color: rgba(182,255,107,.08);
+    box-shadow: 0 2px 14px rgba(0,0,0,.35);
+  }
+  .hero::after{
+    background:
+      linear-gradient(90deg, rgba(6, 28, 22, .66) 0%, rgba(6, 28, 22, .38) 55%, rgba(6, 28, 22, 0) 80%),
+      radial-gradient(720px 320px at 0% 0%, rgba(11,132,87,.35), transparent 60%);
+  }
+  .buscador{
+    background: rgba(18,24,21,.66);
+    border-color: rgba(182,255,107,.10);
+    box-shadow: 0 10px 30px rgba(0,0,0,.35);
+  }
+  .buscador input, .buscador select{
+    color: var(--text);
+    background: #0f1412;
+    border-color: rgba(182,255,107,.10);
+  }
+  #sugerencias{ background:#0f1412; border-color: rgba(182,255,107,.12); }
+  #sugerencias li{ border-bottom-color: rgba(255,255,255,.06); }
+  #sugerencias li:hover{ background: rgba(182,255,107,.06); }
+
+  .club-card{
+    background: var(--surface);
+    border-color: rgba(182,255,107,.10);
+    box-shadow: 0 10px 26px rgba(0,0,0,.45);
+  }
+  .club-card:hover{
+    background: linear-gradient(180deg, #121815, #0f1412);
+    border-color: rgba(182,255,107,.28);
+    box-shadow: 0 22px 60px rgba(6, 28, 22, .45);
+  }
+}
+/* =========================
+   PRO MAX – Visual only
+   ========================= */
+:root{
+  --bg: #0d1512;          /* base más profunda: mejora contraste del hero */
+  --surface: #ffffff;
+  --text: #0f1d15;
+  --muted: #5b6a62;
+  --brand: #0b8457;
+  --brand-2: #06c184;
+  --accent: #b6ff6b;
+  --ring: rgba(11,132,87,.28);
+  --shadow: 0 6px 22px rgba(0,0,0,.08);
+  --shadow-2: 0 16px 40px rgba(11,132,87,.16);
+}
+
+/* Fondo con blobs animados MUY sutiles (no distrae) */
+body{
+  background: var(--bg);
+  position: relative;
+  overflow-x: hidden;
+}
+body::before{
+  content:"";
+  position: fixed; inset:-20% -10% auto -10%;
+  height: 120vh;
+  pointer-events:none;
+  background:
+    radial-gradient(40% 35% at 15% 15%, rgba(11,132,87,.18), transparent 60%),
+    radial-gradient(45% 40% at 85% 10%, rgba(182,255,107,.10), transparent 60%),
+    radial-gradient(40% 35% at 80% 75%, rgba(6,193,132,.12), transparent 60%);
+  filter: blur(30px) saturate(130%);
+  animation: blobs 18s ease-in-out infinite alternate;
+  z-index: 0;
+}
+@keyframes blobs{
+  0%   { transform: translateY(-2%) scale(1); }
+  100% { transform: translateY(2%)  scale(1.03); }
+}
+
+/* HEADER glass más pro */
+header{
+  position: sticky; top: 0; z-index: 50;
+  backdrop-filter: saturate(140%) blur(10px);
+  background: rgba(18,24,21,.72);
+  border-bottom: 1px solid rgba(182,255,107,.10);
+  box-shadow: 0 2px 14px rgba(0,0,0,.35);
+}
+header img{ filter: brightness(1.05) contrast(1.1); }
+header button{
+  position: relative;
+  color:#fff;
+  background: linear-gradient(180deg, var(--brand-2), var(--brand));
+  border: none;
+  box-shadow: var(--shadow-2);
+  transition: transform .08s ease, filter .15s ease;
+  border-radius: 10px;
+}
+header button::after{
+  content:"";
+  position:absolute; inset:-2px;
+  border-radius: 12px;
+  background: linear-gradient(90deg, #b6ff6b, #06c184, #b6ff6b);
+  filter: blur(8px); opacity:.0; transition: opacity .2s ease;
+  z-index:-1;
+}
+header button:hover{ transform: translateY(-1px); filter: brightness(1.05); }
+header button:hover::after{ opacity:.35; }
+
+/* HERO con overlay + título más potente y ola inferior */
+.hero{
+  position: relative; z-index: 1; /* arriba de los blobs */
+  height: 480px;
+  border-bottom-left-radius: 28px;
+  border-bottom-right-radius: 28px;
+  overflow: hidden;
+}
+.hero::before{
+  /* oscurece el fondo para que el texto siempre se lea */
+  content:"";
+  position:absolute; inset:0;
+  background:
+    linear-gradient(92deg, rgba(6, 28, 22, .75) 0%, rgba(6, 28, 22, .45) 52%, rgba(6, 28, 22, .0) 82%),
+    radial-gradient(720px 320px at 0% 0%, rgba(11,132,87,.35), transparent 60%);
+}
+.hero::after{
+  /* onda curva al pie del hero */
+  content:"";
+  position:absolute; left:0; right:0; bottom:-1px; height:120px;
+  background:
+    radial-gradient(80% 120px at 50% 0%, #0f1d15 0%, transparent 70%),
+    linear-gradient(#0f1d15, #0f1d15);
+}
+
+.hero h1{
+  font-weight: 900; letter-spacing:.3px; margin:0 0 8px;
+  color:#fff;
+  text-shadow: 0 8px 32px rgba(0,0,0,.45);
+  transform: translateZ(0);
+}
+.hero p{
+  color:#eaf6f0; margin-top: 8px;
+  text-shadow: 0 4px 22px rgba(0,0,0,.35);
+}
+
+/* BUSCADOR flotante (glass) con glow al foco */
+.buscador{
+  border: 1px solid rgba(182,255,107,.10);
+  background: rgba(18,24,21,.70);
+  backdrop-filter: blur(12px);
+  box-shadow: 0 14px 40px rgba(0,0,0,.40);
+  border-radius: 14px;
+}
+.buscador input, .buscador select{
+  color:#eaf6f0; background: #0f1412; border:1px solid rgba(182,255,107,.10);
+}
+.buscador input::placeholder{ color:#9fb5ab; }
+.buscador input:focus, .buscador select:focus{
+  border-color: var(--brand-2);
+  box-shadow: 0 0 0 3px var(--ring);
+}
+.buscador button{
+  color:#072018;
+  background:
+    linear-gradient(180deg, #d5ffd0, #b6ff6b);
+  border:none;
+  border-radius: 10px;
+  font-weight: 700;
+  box-shadow: 0 10px 26px rgba(182,255,107,.28);
+  transition: transform .08s ease, filter .15s ease;
+}
+.buscador button:hover{ filter: brightness(1.03); transform: translateY(-1px); }
+.buscador button:active{ transform: translateY(0); }
+
+/* Cards con look producto */
+.resultados{ gap:26px; padding-bottom: 48px; }
+.club-card{
+  background: linear-gradient(180deg, #101915, #0f1412);
+  color: #e8f5f0;
+  border: 1px solid rgba(182,255,107,.08);
+  border-radius: 14px;
+  box-shadow: 0 12px 28px rgba(0,0,0,.38);
+  transition: transform .16s ease, box-shadow .20s ease, border-color .20s ease;
+}
+.club-card:hover{
+  transform: translateY(-3px);
+  border-color: rgba(182,255,107,.28);
+  box-shadow: 0 22px 60px rgba(6, 28, 22, .45);
+}
+.club-card p{ color:#b7c8c1; }
+
+/* Autocompletar */
+#sugerencias{
+  background:#0f1412;
+  color:#e8f5f0;
+  border:1px solid rgba(182,255,107,.12);
+  box-shadow: 0 14px 34px rgba(0,0,0,.45);
+  border-radius: 10px;
+}
+#sugerencias li{ border-bottom: 1px solid rgba(255,255,255,.06); }
+#sugerencias li:hover{ background: rgba(182,255,107,.06); }
+
+/* Responsivo */
+@media (max-width: 768px){
+  .hero{ height: 320px; border-radius: 0; }
+  .hero h1{ font-size: 28px; }
+  .hero p{ font-size: 14px; }
+  .buscador{ margin: -28px 12px 24px; padding: 14px; }
+  .resultados{ grid-template-columns: 1fr; gap: 16px; padding: 0 12px 48px; }
+  header button{ font-size: 14px; padding: 8px 10px; }
+}
+
+/* Si el sistema del usuario está en claro, suavizamos fondo general */
+@media (prefers-color-scheme: light){
+  body{ background:
+    radial-gradient(1200px 420px at 120% -10%, #e9fff4 0%, transparent 55%),
+    radial-gradient(900px 520px at -10% 120%, #eef7ff 0%, transparent 55%),
+    #f6f8f7; }
+  .hero::after{ background:
+    radial-gradient(80% 120px at 50% 0%, #f6f8f7 0%, transparent 70%),
+    linear-gradient(#f6f8f7, #f6f8f7); }
+  .club-card{
+    background:#ffffff; color: var(--text);
+    border-color: rgba(12,78,52,.08);
+    box-shadow: var(--shadow);
+  }
+  .club-card p{ color: var(--muted); }
+}
+  </style>
+
+  <!-- ==== Overrides finales: hero + buscador flotante + loader ==== -->
+  <style>
+    /* Hero con espacio inferior para el buscador flotante */
+    .hero{ min-height: 62vh; padding: 80px 22px 140px; }
+    .hero .inner{ position:relative; z-index:1; max-width:1100px; margin:0 auto; }
+
+    /* Buscador en grilla y centrado (encima del hero) */
+    .buscador{
+      margin: -90px auto 28px !important;
+      width: min(920px, calc(100% - 24px));
+      display: grid !important;
+      grid-template-columns: 1fr 160px 160px;
+      gap: 10px;
+      padding: 16px !important;
+
+      position: relative;
+      z-index: 9; /* <— asegura que NO quede tapado por el hero */
+    }
+
+    /* Sugerencias alineadas debajo del input (col 1) */
+    #sugerencias{
+      position: absolute; left: 16px; top: 62px;
+      width: calc(100% - 332px); /* ancho del 1er campo cuando hay 3 columnas */
+      max-width: 520px;
+      max-height: 220px;
+      overflow: auto;
+      z-index: 10;
+    }
+
+    /* Loader overlay */
+    #loadingOverlay{
+      position: fixed; inset:0; z-index: 9999;
+      background: rgba(7,10,12,.55);
+      display: none; align-items: center; justify-content: center; text-align:center;
+    }
+    #loadingOverlay.show{ display:flex }
+    .spinner{
+      width: 56px; height: 56px; border-radius: 50%;
+      border: 4px solid rgba(255,255,255,.25);
+      border-top-color: #0b8457;
+      animation: spin 1s linear infinite;
+      margin: 0 auto 12px;
+    }
+    #loadingOverlay .msg{ color:#fff; font-weight:700 }
+    @keyframes spin{ to { transform: rotate(360deg) } }
+
+    /* Mobile */
+    @media (max-width: 720px){
+      .buscador{
+        grid-template-columns: 1fr !important;
+        margin: -60px auto 20px !important;
+      }
+      #sugerencias{ left:16px; top:126px; width: calc(100% - 32px); }
+    }
   </style>
 </head>
 <body>
+
+  <!-- Loader -->
+  <div id="loadingOverlay">
+    <div>
+      <div class="spinner"></div>
+      <div class="msg" id="loadingMsg">Iniciando servidor…</div>
+    </div>
+  </div>
 
   <header>
     <img src="https://upload.wikimedia.org/wikipedia/commons/thumb/a/ac/No_image_available.svg/480px-No_image_available.svg.png" alt="Logo" />
@@ -246,8 +762,10 @@
   </header>
 
   <div class="hero">
-    <h1>Reserva tu cancha al instante</h1>
-    <p>Explorá las canchas disponibles en tu ciudad y en tiempo real.</p>
+    <div class="inner">
+      <h1>Reserva tu cancha al instante</h1>
+      <p>Explorá las canchas disponibles en tu ciudad y en tiempo real.</p>
+    </div>
   </div>
 
   <div class="buscador">
@@ -263,6 +781,7 @@
 
 </body>
 </html>
+
 
 
 
