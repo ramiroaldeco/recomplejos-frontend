@@ -121,7 +121,7 @@
       hideLoader();
     }
   }
-    /* ==== Menú móvil ==== */
+  /* ==== Menú móvil ==== */
   function toggleMenu(){ document.getElementById('mobileMenu').classList.toggle('open'); }
   function closeMenu(){ document.getElementById('mobileMenu').classList.remove('open'); }
 
@@ -774,6 +774,46 @@ header button:hover::after{ opacity:.35; }
       }
       #sugerencias{ left:16px; top:126px; width: calc(100% - 32px); }
     }
+	/* ===== Mobile Pack: header + menú lateral + ubicación + tactilidad ===== */
+
+/* Botón hamburguesa (oculto en desktop) */
+.menu-toggle{ display:none; width:42px; height:42px; border:0; border-radius:10px; 
+  background: rgba(18,24,21,.75); backdrop-filter: blur(8px); 
+  align-items:center; justify-content:center; gap:4px; padding:0; }
+.menu-toggle span{ display:block; width:20px; height:2px; background:#eaf6f0; border-radius:2px; }
+@media (max-width:680px){
+  header{ gap:8px; padding: 12px 16px; padding-top: calc(12px + env(safe-area-inset-top)); }
+  header img{ height:28px; }
+  header > div{ display:none; }     /* oculto fila de botones */
+  .menu-toggle{ display:inline-flex; }
+}
+
+/* Panel lateral */
+#mobileMenu{ position:fixed; inset:0; background:rgba(0,0,0,.45); display:none; z-index:1000; }
+#mobileMenu.open{ display:block; }
+#mobileMenu .sheet{
+  position:absolute; right:0; top:0; height:100%; width:min(80%, 320px);
+  background:#101915; border-left:1px solid rgba(182,255,107,.12);
+  padding:16px; display:flex; flex-direction:column; gap:12px;
+}
+#mobileMenu .close{ align-self:flex-end; background:none; border:0; color:#eaf6f0; font-size:28px; }
+#mobileMenu .m-btn{
+  display:block; text-decoration:none; color:#eaf6f0; font-weight:600;
+  background:#16211c; border:1px solid rgba(182,255,107,.12);
+  padding:14px 16px; border-radius:12px;
+}
+
+/* Botón “Usar mi ubicación” (solo en móvil) */
+.ubicar{ display:none; background:none; border:0; color:#b6ff6b; text-align:left; 
+  padding:6px 0 0; font-weight:600; text-decoration:underline; }
+@media (max-width:720px){
+  .ubicar{ display:block; }
+  .buscador input, .buscador select, .buscador button{ font-size:16px; min-height:44px; }
+  .hero{ min-height:56vh; padding:64px 12px 120px; background-position:center 40%; }
+}
+
+/* Aseguro que el buscador quede por encima del hero en iOS */
+.buscador{ position:relative; z-index:9; }
   </style>
 </head>
 <body>
@@ -788,13 +828,23 @@ header button:hover::after{ opacity:.35; }
 
   <header>
     <img src="https://upload.wikimedia.org/wikipedia/commons/thumb/a/ac/No_image_available.svg/480px-No_image_available.svg.png" alt="Logo" />
+	<button class="menu-toggle" aria-label="Abrir menú" onclick="toggleMenu()">
+  <span></span><span></span><span></span>
+</button>
     <div>
       <button onclick="window.location.href='software.html'">Software para clubes</button>
       <button onclick="window.location.href='login.html'">Iniciar sesión</button>
       <button onclick="window.location.href='micomplejo.html'">Mi complejo</button>
     </div>
   </header>
-
+<div id="mobileMenu" onclick="closeMenu()">
+  <div class="sheet" onclick="event.stopPropagation()">
+    <button class="close" aria-label="Cerrar" onclick="closeMenu()">×</button>
+    <a href="software.html" class="m-btn">Software para clubes</a>
+    <a href="login.html" class="m-btn">Iniciar sesión</a>
+    <a href="micomplejo.html" class="m-btn">Mi complejo</a>
+  </div>
+</div>
   <div class="hero">
     <div class="inner">
       <h1>Reserva tu cancha al instante</h1>
@@ -803,7 +853,9 @@ header button:hover::after{ opacity:.35; }
   </div>
 
   <div class="buscador">
-    <input type="text" id="ciudad" placeholder="Buscar Ciudad" oninput="autocompletarCiudad()">
+    <input type="search" id="ciudad" placeholder="Buscar Ciudad"
+       oninput="autocompletarCiudad()" autocomplete="off" enterkeyhint="search" autocapitalize="words">
+	<button type="button" class="ubicar" onclick="usarMiUbicacion()">📍 Usar mi ubicación</button>
     <ul id="sugerencias"></ul>
     <select id="deporte">
       <option value="futbol">Fútbol</option>
@@ -815,6 +867,7 @@ header button:hover::after{ opacity:.35; }
 
 </body>
 </html>
+
 
 
 
