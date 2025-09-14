@@ -121,6 +121,40 @@
       hideLoader();
     }
   }
+    /* ==== Menú móvil ==== */
+  function toggleMenu(){ document.getElementById('mobileMenu').classList.toggle('open'); }
+  function closeMenu(){ document.getElementById('mobileMenu').classList.remove('open'); }
+
+  /* ==== Usar mi ubicación (auto-completa ciudad) ==== */
+  async function usarMiUbicacion(){
+    if(!navigator.geolocation){ alert('Tu dispositivo no permite geolocalización'); return; }
+    showLoader('Obteniendo tu ubicación…');
+
+    navigator.geolocation.getCurrentPosition(async pos=>{
+      try{
+        const { latitude: lat, longitude: lon } = pos.coords;
+        ciudadSeleccionadaCoords = [lon, lat];  // lo que ya usa tu lógica
+
+        // Reverse geocoding a ciudad con Mapbox
+        const r = await fetch(`https://api.mapbox.com/geocoding/v5/mapbox.places/${lon},${lat}.json?access_token=${token}&types=place&limit=1`);
+        const j = await r.json();
+        const place = (j.features && j.features[0] && j.features[0].text) || 'Mi ubicación';
+        const input = document.getElementById('ciudad');
+        input.value = place;
+      }catch(e){ console.error(e); }
+      hideLoader();
+    }, err => { console.warn(err); hideLoader(); alert('No pudimos obtener la ubicación.'); }, { enableHighAccuracy:true, timeout:10000 });
+  }
+
+  /* ==== Scroll suave a resultados tras buscar ==== */
+  const _oldBuscar = buscarCanchas; // preservo tu función
+  buscarCanchas = async function(){
+    await _oldBuscar();
+    const lista = document.getElementById('listaCanchas');
+    if (lista && lista.children.length) {
+      lista.scrollIntoView({ behavior:'smooth', block:'start' });
+    }
+  }
 </script>
 
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -781,6 +815,7 @@ header button:hover::after{ opacity:.35; }
 
 </body>
 </html>
+
 
 
 
