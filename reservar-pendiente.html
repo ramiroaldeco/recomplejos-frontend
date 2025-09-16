@@ -1,26 +1,75 @@
-<!DOCTYPE html>
+<<!DOCTYPE html>
 <html lang="es">
 <head>
-  <meta charset="UTF-8">
-  <title>Pago pendiente</title>
-  <style>
-    body {
-      font-family: 'Segoe UI', sans-serif;
-      background-color: #fffce6;
-      text-align: center;
-      padding: 40px;
-    }
-    h1 {
-      color: #e68a00;
-    }
-    p {
-      font-size: 18px;
-    }
-  </style>
+<meta charset="UTF-8" />
+<title>Pago pendiente</title>
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&display=swap" rel="stylesheet">
+<style>
+:root{--bg:#0d1512;--card:#121f19;--text:#eaf6f0;--muted:#b7c8c1;--border:rgba(182,255,107,.14)}
+*{box-sizing:border-box}
+body{margin:0;font-family:Inter,system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif;background:var(--bg);color:var(--text);
+  padding-left:env(safe-area-inset-left);padding-right:env(safe-area-inset-right);}
+body::before{content:"";position:fixed;inset:-20% -10% auto -10%;height:120vh;pointer-events:none;z-index:0;
+ background:
+  radial-gradient(40% 35% at 15% 15%, rgba(230,179,0,.18), transparent 60%),
+  radial-gradient(45% 40% at 85% 10%, rgba(182,255,107,.10), transparent 60%),
+  radial-gradient(40% 35% at 80% 75%, rgba(6,193,132,.12), transparent 60%);
+ filter:blur(30px) saturate(130%);animation:blobs 18s ease-in-out infinite alternate;}
+@keyframes blobs{0%{transform:translateY(-2%) scale(1)}100%{transform:translateY(2%) scale(1.03)}}
+.wrap{min-height:100dvh;display:flex;align-items:center;justify-content:center;padding:24px}
+.card{background:var(--card);border:1px solid var(--border);border-radius:16px;box-shadow:0 12px 28px rgba(0,0,0,.38);padding:22px 18px;max-width:520px;width:100%;text-align:center}
+.icon{width:84px;height:84px;border-radius:50%;margin:4px auto 12px;display:grid;place-items:center;
+ background:linear-gradient(180deg,#ffeab3,#ffd666);color:#3b2a00;font-size:40px;font-weight:900}
+h1{margin:8px 0 6px;font-size:26px}
+p.sub{margin:0;color:var(--muted)}
+.details{margin:14px 0 2px;color:#cfe3da;font-size:14px}
+.badge{display:inline-block;background:#16211c;border:1px solid rgba(255,255,255,.08);padding:6px 10px;border-radius:10px;margin:4px 4px}
+.actions{display:grid;gap:10px;margin-top:14px}
+.btn{min-height:46px;border-radius:12px;border:0;cursor:pointer;font-weight:800}
+.btn-primary{background:#16211c;border:1px solid rgba(255,255,255,.10);color:#eaf6f0}
+.btn-ghost{background:linear-gradient(180deg,#ffeab3,#ffd666);color:#3b2a00}
+.small{font-size:13px;color:var(--muted);margin-top:8px}
+</style>
 </head>
 <body>
-  <h1>Tu pago está pendiente 🕒</h1>
-  <p>Aún no podemos guardar la reserva hasta que se apruebe.</p>
-  <p>Cuando se confirme, se te notificará por Mercado Pago.</p>
+<div class="wrap">
+  <div class="card">
+    <div class="icon">⏳</div>
+    <h1>Pago pendiente de aprobación</h1>
+    <p class="sub">Estamos verificando tu seña. Te avisaremos cuando quede confirmada.</p>
+
+    <div id="info" class="details" style="display:none">
+      <div class="badge" id="bComplejo"></div>
+      <div class="badge" id="bCancha"></div>
+      <div class="badge" id="bDiaHora"></div>
+    </div>
+
+    <div class="actions">
+      <button class="btn btn-primary" onclick="goToComplex()">Volver al complejo</button>
+      <button class="btn btn-ghost" onclick="location.href='inicio.html'">Ir al inicio</button>
+    </div>
+  </div>
+</div>
+<script>
+function parseReserva(){
+  const clave = localStorage.getItem('reserva_clave') || new URLSearchParams(location.search).get('clave');
+  if(!clave) return null; const [complejo, cancha, dia, hora] = clave.split('-'); return {clave,complejo,cancha,dia,hora};
+}
+function paint(){
+  const r = parseReserva(); if(!r) return;
+  document.getElementById('info').style.display='block';
+  bComplejo.textContent='Complejo: '+r.complejo; bCancha.textContent='Cancha: '+(r.cancha||''); bDiaHora.textContent=(r.dia||'')+' '+(r.hora||'');
+}
+function goToComplex(){
+  const r = parseReserva(); if(r&&r.complejo){location.href=`frontend.html?complejo=${encodeURIComponent(r.complejo)}`;}
+  else if(history.length>1){history.back();} else {location.href='inicio.html';}
+}
+function copyClave(){const r=parseReserva(); if(!r) return alert('No hay código.'); navigator.clipboard?.writeText(r.clave).then(()=>alert('Código copiado')).catch(()=>{});}
+paint();
+</script>
 </body>
 </html>
+
