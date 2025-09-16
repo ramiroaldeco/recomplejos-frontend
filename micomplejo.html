@@ -3,300 +3,361 @@
 <head>
   <meta charset="UTF-8" />
   <title>Mi Complejo</title>
-  <style>
-    body {
-      font-family: 'Segoe UI', sans-serif;
-      margin: 0;
-      background-color: #f8f8f8;
-      color: #333;
-    }
-    header {
-      background-color: #00aa55;
-      color: white;
-      padding: 20px;
-      text-align: center;
-    }
-    .contenedor {
-      max-width: 1000px;
-      margin: auto;
-      padding: 20px;
-      background: white;
-      border-radius: 10px;
-      margin-top: 20px;
-    }
-    h2 { color: #00aa55; }
-    input, select, button, textarea {
-      padding: 10px;
-      margin: 10px 5px;
-      border-radius: 5px;
-      border: 1px solid #ccc;
-    }
-    button {
-      background-color: #00aa55;
-      color: white;
-      cursor: pointer;
-      border: none;
-    }
-    .panel { margin-top: 30px; }
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
 
-    .imagenes-preview {
-      display: flex;
-      gap: 10px;
-      overflow-x: auto;
-      margin-top: 10px;
-    }
-    .imagenes-preview div { display: flex; flex-direction: column; align-items: center; }
-    .imagenes-preview img { height: 150px; border-radius: 10px; }
+  <!-- Fuente -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&display=swap" rel="stylesheet">
 
-    .servicios {
-      display: flex; flex-wrap: wrap; gap: 15px; margin-top: 10px;
-    }
-    .servicios label {
-      display: flex; align-items: center; gap: 5px;
-      background: #f0f0f0; padding: 8px 12px; border-radius: 20px;
-    }
-
-    table { width: 100%; border-collapse: collapse; margin-top: 20px; background: white; }
-    th, td { border: 1px solid #ccc; padding: 8px; text-align: center; }
-    th { background-color: #00aa55; color: white; }
-    .reservado { background-color: #f44336; color: white; }
-    .disponible { background-color: #4CAF50; color: white; }
-    .deshabilitado { background-color: #aaa; color: white; }
-    .bloque { background-color: #ffd700; color: black; }
-
-    /* ===== Tabla de turnos (admin) ===== */
-    .tabla-scroll{
-      max-height: 520px;     /* alto visible; aparece scroll si hay muchas filas */
-      overflow: auto;        /* scroll X e Y */
-      border: 1px solid #e7ecef;
-      border-radius: 12px;
-    }
-    .turnos{
-      width: 100%;
-      border-collapse: separate;
-      border-spacing: 0;
-      min-width: 960px;
-      font-size: 14px;
-    }
-    .turnos th, .turnos td{
-      padding: 10px 12px;
-      border-bottom: 1px solid #eef2f6;
-    }
-    .turnos thead th{
-      position: sticky; top: 0; background: #0b8457; color: #fff; z-index: 2;
-    }
-    .turnos th:first-child, .turnos td:first-child{
-      position: sticky; left: 0; background: #fff; z-index: 3; font-weight: 600;
-    }
-    .turnos tbody tr:nth-child(even) td{ background: #fbfcfd; }
-    .turnos .deshabilitado{ background:#f1f3f6; color:#7a7f87; text-align:center; }
-    .turnos .reservado{ background:#ffe3e3; color:#b42318; font-weight:600; text-align:center; }
-    .turnos .disponible{ background:#e8f7ee; color:#136f3a; text-align:center; cursor:pointer; }
-    .turnos .disponible:hover{ filter: brightness(0.97); }
-    .turnos .btn-mini{
-      display:inline-flex; align-items:center; justify-content:center;
-      width:32px; height:32px; border-radius:10px; border:0;
-      background:#0b8457; color:#fff; cursor:pointer;
-    }
-    .turnos .btn-mini.secondary{ background:#e53935; }
-    .turnos .btn-mini:disabled{ opacity:.5; cursor:not-allowed; }
-  </style>
+  <!-- (opcional) Tu gráfico en el futuro -->
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-</head>
-<body>
-  <header><h1>Panel del Propietario</h1></header>
 
-  <div class="contenedor" id="loginPanel">
-    <h2>Ingresar a tu complejo</h2>
-    <select id="complejo">
-      <option value="">-- Elegí tu complejo --</option>
-    </select>
-    <input type="password" id="clave" placeholder="Contraseña" />
-    <button onclick="entrarAdmin()">Entrar</button>
-  </div>
-
-  <div id="panel" class="contenedor" style="display:none;">
-    <h2 id="tituloComplejo"></h2>
-    <button onclick="cerrarSesion()">Cerrar sesión</button>
-
-    <!-- Datos del Complejo -->
-    <div class="panel">
-      <h3>Datos del Complejo</h3>
-      <input type="text" id="nombreComplejo" placeholder="Nombre del complejo" />
-      <input type="text" id="ciudadComplejo" placeholder="Ciudad" />
-      <textarea id="iframeMapa" rows="4" style="width:100%;" placeholder="Pegar código iframe del mapa aquí"></textarea>
-      <button onclick="guardarDatosGenerales()">Guardar datos del complejo</button>
-    </div>
-
-    <!-- Horarios del Complejo -->
-    <div class="panel">
-      <h3>Horarios del Complejo</h3>
-      <table>
-        <thead><tr><th>Día</th><th>Desde</th><th>Hasta</th></tr></thead>
-        <tbody id="tablaHorarios"></tbody>
-      </table>
-      <button onclick="guardarHorarios()">Guardar horarios</button>
-    </div>
-
-    <!-- Fotos del Complejo -->
-    <div class="panel">
-      <h3>Fotos del Complejo</h3>
-      <input type="file" id="imagenes" multiple accept="image/*" />
-      <button onclick="alert('Subí tus imágenes a https://postimg.cc y pegá los enlaces')">Guardar Imágenes</button>
-      <div class="imagenes-preview" id="preview"></div>
-    </div>
-
-    <!-- Servicios -->
-    <div class="panel">
-      <h3>Servicios ofrecidos</h3>
-      <div class="servicios" id="listaServicios">
-        <label><input type="checkbox" value="Duchas" /> Duchas</label>
-        <label><input type="checkbox" value="Vestuarios" /> Vestuarios</label>
-        <label><input type="checkbox" value="Quincho" /> Quincho</label>
-        <label><input type="checkbox" value="Parrilla" /> Parrilla</label>
-        <label><input type="checkbox" value="Wifi" /> Wifi</label>
-        <label><input type="checkbox" value="Bar" /> Bar</label>
-        <label><input type="checkbox" value="Buffet" /> Buffet</label>
-        <label><input type="checkbox" value="Baños" /> Baños</label>
-        <label><input type="checkbox" value="Estacionamiento" /> Estacionamiento</label>
-      </div>
-      <button onclick="guardarServicios()">Guardar servicios</button>
-    </div>
-
-    <!-- Canchas -->
-    <div class="panel">
-      <h3>Canchas del Complejo</h3>
-      <div id="listaCanchas"></div>
-      <button onclick="agregarCancha()">+ Agregar Cancha</button>
-      <button onclick="guardarCanchas()">Guardar Canchas</button>
-    </div>
-
-    <!-- Turnos -->
-    <div class="panel">
-      <h3>Turnos del Complejo</h3>
-      <div id="tablasTurnosCanchas"></div>
-    </div>
-  </div>
-
-  <script>
-  // ===== Helpers horarios (incluye trasnoche) =====
-  function canonDia(d){ return (d||"").normalize("NFD").replace(/[\u0300-\u036f]/g,""); }
-  function getHorario(horarios, nombreDia){ return horarios[nombreDia] || horarios[canonDia(nombreDia)] || {}; }
-  function entre(hora, desde, hasta){
-    if(!desde || !hasta) return false;
-    return (desde <= hasta) ? (hora >= desde && hora <= hasta) : (hora >= desde || hora <= hasta);
-  }
-
-  // ===== Estado global =====
-  const backendUrl = "https://recomplejos-backend.onrender.com";
-  let complejoActivo = "";
-  const diasSemana = ["Domingo","Lunes","Martes","Miércoles","Jueves","Viernes","Sábado"];
-
-  // ===== Poblar <select> con complejos =====
-  async function poblarSelectComplejos() {
-    try {
-      const data = await fetch(`${backendUrl}/datos_complejos`).then(r => r.json());
-      const sel = document.getElementById("complejo");
-      const previo = localStorage.getItem("complejoActivo") || "";
-
-      sel.innerHTML = '<option value="">-- Elegí tu complejo --</option>';
-
-      const items = Object.entries(data).sort((a,b) => {
-        const an = (a[1].nombre || a[0]).toLocaleLowerCase();
-        const bn = (b[1].nombre || b[0]).toLocaleLowerCase();
-        return an.localeCompare(bn, "es", { sensitivity: "base" });
-      });
-
-      for (const [slug, cfg] of items) {
-        const opt = document.createElement("option");
-        opt.value = slug;
-        opt.textContent = `${cfg.nombre || slug}${cfg.ciudad ? ` (${cfg.ciudad})` : ""}`;
-        sel.appendChild(opt);
-      }
-
-      if (previo && data[previo]) sel.value = previo;
-    } catch (e) {
-      console.error("No se pudieron cargar los complejos", e);
+  <style>
+    :root{
+      --bg:#0d1512; --surface:#101915; --card:#121f19; --text:#eaf6f0; --muted:#b7c8c1;
+      --brand:#0b8457; --brand-2:#06c184; --accent:#b6ff6b; --ring:rgba(11,132,87,.28);
+      --border:rgba(182,255,107,.14); --soft:rgba(255,255,255,.06);
+      --shadow:0 12px 28px rgba(0,0,0,.38);
     }
-  }
+    *{box-sizing:border-box}
+    body{
+      margin:0; font-family:Inter,system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif;
+      background:var(--bg); color:var(--text);
+      -webkit-tap-highlight-color:rgba(255,255,255,.08);
+      padding-left:env(safe-area-inset-left); padding-right:env(safe-area-inset-right);
+    }
 
-  // ===== Login y carga inicial =====
-  window.addEventListener("load", () => {
-    document.getElementById("panel").style.display = "none";
-    document.getElementById("loginPanel").style.display = "block";
-    poblarSelectComplejos();
-  });
+    /* Fondo con blobs sutiles */
+    body::before{
+      content:""; position:fixed; inset:-20% -10% auto -10%; height:120vh; pointer-events:none; z-index:0;
+      background:
+        radial-gradient(40% 35% at 15% 15%, rgba(11,132,87,.18), transparent 60%),
+        radial-gradient(45% 40% at 85% 10%, rgba(182,255,107,.10), transparent 60%),
+        radial-gradient(40% 35% at 80% 75%, rgba(6,193,132,.12), transparent 60%);
+      filter:blur(30px) saturate(130%);
+      animation:blobs 18s ease-in-out infinite alternate;
+    }
+    @keyframes blobs{0%{transform:translateY(-2%) scale(1)}100%{transform:translateY(2%) scale(1.03)}}
 
-  let reservasActuales = {};
-  function cargarReservas() {
-    return fetch(`${backendUrl}/reservas`)
-      .then(res => res.json())
-      .then(data => { reservasActuales = data; });
-  }
+    /* Header */
+    header{
+      position:sticky; top:0; z-index:50;
+      display:flex; align-items:center; justify-content:space-between; gap:8px;
+      padding:12px 16px; padding-top:calc(12px + env(safe-area-inset-top));
+      background:rgba(18,24,21,.72); backdrop-filter:saturate(140%) blur(10px);
+      border-bottom:1px solid var(--border); box-shadow:0 2px 14px rgba(0,0,0,.35);
+    }
+    header h1{ margin:0; font-size:18px; font-weight:800; white-space:nowrap; overflow:hidden; text-overflow:ellipsis }
+    .btn{
+      appearance:none; border:0; cursor:pointer; border-radius:12px; min-height:44px;
+      font-weight:800; padding:10px 14px;
+    }
+    .btn-primary{ background:linear-gradient(180deg,#d5ffd0,#b6ff6b); color:#072018 }
+    .btn-ghost{ background:#16211c; color:#eaf6f0; border:1px solid var(--border) }
 
-  function entrarAdmin() {
-    const complejo = document.getElementById("complejo").value;
-    const clave = document.getElementById("clave").value;
+    /* Layout */
+    .wrap{ max-width:1100px; margin:12px auto 24px; padding:0 12px; position:relative; z-index:1 }
+    .card{
+      background:var(--card); border:1px solid var(--border); border-radius:16px;
+      padding:14px; box-shadow:var(--shadow); margin-bottom:12px;
+    }
+    .card h2, .card h3{ margin:4px 0 10px }
+    .grid{ display:grid; gap:12px }
+    .g2{ grid-template-columns:1fr 1fr }
+    @media (max-width:900px){ .g2{ grid-template-columns:1fr } }
 
-    fetch(`${backendUrl}/login`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ complejo, password: clave })
-    })
-    .then(res => { if (!res.ok) throw new Error("Login fallido"); return res.json(); })
-    .then(() => {
-      complejoActivo = complejo;
-      localStorage.setItem("complejoActivo", complejo);
-      document.getElementById("panel").style.display = "block";
-      document.getElementById("loginPanel").style.display = "none";
-      document.getElementById("tituloComplejo").textContent = `Administración: ${complejo}`;
-      cargarDatos();
-      cargarReservas().then(cargarTurnos);
-    })
-    .catch(() => alert("Contraseña incorrecta"));
-  }
+    /* Inputs */
+    input, select, textarea{
+      width:100%; border-radius:12px; border:1px solid var(--border); background:#0f1412; color:#eaf6f0;
+      padding:12px; font-size:16px; outline:none;
+    }
+    input:focus, select:focus, textarea:focus{ box-shadow:0 0 0 3px var(--ring); border-color:#1aa774 }
 
-  function cerrarSesion() { location.reload(); }
+    /* Chips/labels */
+    .chips{ display:flex; flex-wrap:wrap; gap:8px }
+    .chip{ background:#16211c; border:1px solid var(--border); color:#cfe3da; padding:8px 10px; border-radius:10px }
 
-  // ===== Datos, horarios, servicios, canchas =====
-  function cargarDatos() {
-    fetch(`${backendUrl}/datos_complejos`)
-      .then(res => res.json())
-      .then(data => {
+    /* Servicios (checkboxes lindos) */
+    .servicios label{
+      display:flex; align-items:center; gap:10px; background:#16211c; border:1px solid var(--border);
+      color:#cfe3da; padding:10px 12px; border-radius:12px; width:100%;
+    }
+    .servicios input[type="checkbox"]{ width:18px; height:18px }
+
+    /* Lista de canchas */
+    .cancha{ border:1px dashed var(--border); border-radius:12px; padding:12px; margin-bottom:10px; background:#0f1412 }
+    .cancha .row{ display:grid; grid-template-columns:1fr 1fr; gap:10px }
+    .cancha .row3{ display:grid; grid-template-columns:1fr 1fr 1fr; gap:10px }
+    @media (max-width:900px){
+      .cancha .row, .cancha .row3{ grid-template-columns:1fr }
+    }
+    .btn-mini{
+      padding:6px 10px; border-radius:10px; border:1px solid var(--border);
+      background:#16211c; color:#eaf6f0; font-weight:700; cursor:pointer;
+    }
+    .btn-mini.danger{ border-color:#ff7e7e; color:#ff7e7e }
+    .btn-mini.success{ border-color:#b6ff6b; color:#b6ff6b }
+
+    /* Horarios */
+    table{ width:100%; border-collapse:collapse; font-size:14px; background:#0f1412 }
+    th,td{ border:1px solid var(--soft); padding:8px; text-align:center; color:#d8e7e1 }
+    thead th{ position:sticky; top:0; background:#101915; z-index:1 }
+    .tabla-scroll{ max-height:60vh; overflow:auto; border:1px solid var(--border); border-radius:12px }
+
+    /* Estado de turnos */
+    .turnos .reservado{ background:#ffe5e5; color:#b00020; font-weight:700 }
+    .turnos .bloque{ background:#ffd666; color:#3b2a00; font-weight:700 }
+    .turnos .ok{ background:linear-gradient(180deg,#d5ffd0,#b6ff6b); color:#072018; font-weight:800; cursor:pointer }
+    .turnos .off{ background:#1a2420; color:#8fa09a }
+
+    /* Previsualización de imágenes */
+    .imagenes-preview{ display:grid; grid-template-columns:repeat(auto-fill,minmax(120px,1fr)); gap:10px }
+    .imagenes-preview img{ width:100%; height:120px; object-fit:cover; border-radius:10px; border:1px solid var(--soft) }
+
+    /* Loader overlay */
+    #loadingOverlay{
+      position:fixed; inset:0; z-index:9999; background:rgba(7,10,12,.55);
+      display:none; align-items:center; justify-content:center; text-align:center;
+    }
+    #loadingOverlay.show{ display:flex }
+    .spinner{
+      width:56px; height:56px; border-radius:50%;
+      border:4px solid rgba(255,255,255,.25); border-top-color:var(--brand);
+      animation:spin 1s linear infinite; margin:0 auto 12px;
+    }
+    @keyframes spin{ to{ transform:rotate(360deg) } }
+    #loadingOverlay .msg{ color:#fff; font-weight:800 }
+  </style>
+</head>
+
+<body>
+  <!-- Loader -->
+  <div id="loadingOverlay">
+    <div>
+      <div class="spinner"></div>
+      <div class="msg" id="loadingMsg">Cargando…</div>
+    </div>
+  </div>
+
+  <header>
+    <h1>Panel del Propietario</h1>
+    <button class="btn btn-ghost" onclick="location.href='inicio.html'">← Inicio</button>
+  </header>
+
+  <div class="wrap">
+    <!-- Login -->
+    <div class="card" id="loginPanel">
+      <h2>Ingresar a tu complejo</h2>
+      <div class="grid g2">
+        <div>
+          <label class="chip">Complejo</label>
+          <select id="complejo">
+            <option value="">-- Elegí tu complejo --</option>
+          </select>
+        </div>
+        <div>
+          <label class="chip">Contraseña</label>
+          <input type="password" id="clave" placeholder="Contraseña" />
+        </div>
+      </div>
+      <div style="display:flex; gap:10px; margin-top:12px;">
+        <button class="btn btn-primary" onclick="entrarAdmin()">Entrar</button>
+      </div>
+    </div>
+
+    <!-- Panel principal -->
+    <div id="panel" style="display:none;">
+      <div class="card" style="display:flex; align-items:center; justify-content:space-between; gap:10px;">
+        <h2 id="tituloComplejo" style="margin:0;">Administración</h2>
+        <button class="btn btn-ghost" onclick="cerrarSesion()">Cerrar sesión</button>
+      </div>
+
+      <!-- Datos del Complejo -->
+      <div class="card">
+        <h3>Datos del Complejo</h3>
+        <div class="grid g2">
+          <div>
+            <label class="chip">Nombre</label>
+            <input type="text" id="nombreComplejo" placeholder="Nombre del complejo" />
+          </div>
+          <div>
+            <label class="chip">Ciudad</label>
+            <input type="text" id="ciudadComplejo" placeholder="Ciudad" />
+          </div>
+        </div>
+        <div style="margin-top:10px;">
+          <label class="chip">Mapa (iframe)</label>
+          <textarea id="iframeMapa" rows="4" placeholder="Pegar código iframe del mapa aquí"></textarea>
+        </div>
+        <div style="margin-top:12px;">
+          <button class="btn btn-primary" onclick="guardarDatosGenerales()">Guardar datos del complejo</button>
+        </div>
+      </div>
+
+      <!-- Horarios -->
+      <div class="card">
+        <h3>Horarios de atención</h3>
+        <div class="tabla-scroll">
+          <table>
+            <thead><tr><th>Día</th><th>Desde</th><th>Hasta</th></tr></thead>
+            <tbody id="tablaHorarios"></tbody>
+          </table>
+        </div>
+        <div style="margin-top:12px;">
+          <button class="btn btn-primary" onclick="guardarHorarios()">Guardar horarios</button>
+        </div>
+      </div>
+
+      <!-- Fotos -->
+      <div class="card">
+        <h3>Fotos del Complejo</h3>
+        <p class="muted" style="color:var(--muted); margin-top:0">Subí tus imágenes a <strong>https://postimg.cc</strong> y pegá los enlaces en “Datos del complejo” cuando incorporemos la galería. Por ahora, podés cargar archivos (vista previa local).</p>
+        <input type="file" id="imagenes" multiple accept="image/*" />
+        <div class="imagenes-preview" id="preview" style="margin-top:10px;"></div>
+      </div>
+
+      <!-- Servicios -->
+      <div class="card">
+        <h3>Servicios ofrecidos</h3>
+        <div class="grid g2 servicios" id="listaServicios">
+          <label><input type="checkbox" value="Duchas" /> Duchas</label>
+          <label><input type="checkbox" value="Vestuarios" /> Vestuarios</label>
+          <label><input type="checkbox" value="Quincho" /> Quincho</label>
+          <label><input type="checkbox" value="Parrilla" /> Parrilla</label>
+          <label><input type="checkbox" value="Buffet" /> Buffet</label>
+          <label><input type="checkbox" value="Estacionamiento" /> Estacionamiento</label>
+        </div>
+        <div style="margin-top:12px;">
+          <button class="btn btn-primary" onclick="guardarServicios()">Guardar servicios</button>
+        </div>
+      </div>
+
+      <!-- Canchas -->
+      <div class="card">
+        <h3>Canchas del Complejo</h3>
+        <div id="listaCanchas"></div>
+        <div style="display:flex; gap:10px; margin-top:12px; flex-wrap:wrap;">
+          <button class="btn btn-ghost" onclick="agregarCancha()">+ Agregar Cancha</button>
+          <button class="btn btn-primary" onclick="guardarCanchas()">Guardar Canchas</button>
+        </div>
+      </div>
+
+      <!-- Turnos -->
+      <div class="card">
+        <h3>Turnos del Complejo</h3>
+        <p class="muted" style="color:var(--muted); margin-top:0">Deslizá la tabla. Tocá un horario para <strong>bloquear</strong>, <strong>desbloquear</strong> o <strong>cancelar</strong> reservas.</p>
+        <div id="tablasTurnosCanchas"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===== JS ===== -->
+  <script>
+    /* ===== Helpers ===== */
+    function canonDia(d){ return (d||"").normalize("NFD").replace(/[\u0300-\u036f]/g,""); }
+    function getHorario(horarios, nombreDia){ return horarios[nombreDia] || horarios[canonDia(nombreDia)] || {}; }
+    function entre(hora, desde, hasta){
+      if(!desde || !hasta) return false;
+      return (desde <= hasta) ? (hora >= desde && hora <= hasta) : (hora >= desde || hora <= hasta);
+    }
+    function showLoader(msg="Cargando…"){ const o=document.getElementById("loadingOverlay"), m=document.getElementById("loadingMsg"); if(m) m.textContent=msg; if(o) o.classList.add("show"); }
+    function hideLoader(){ const o=document.getElementById("loadingOverlay"); if(o) o.classList.remove("show"); }
+
+    /* ===== Estado ===== */
+    const backendUrl = "https://recomplejos-backend.onrender.com";
+    let complejoActivo = "";
+    const diasSemana = ["Domingo","Lunes","Martes","Miércoles","Jueves","Viernes","Sábado"];
+
+    /* ===== Inicio ===== */
+    window.addEventListener("DOMContentLoaded", () => {
+      poblarSelectComplejos();
+      // preview rápida local (opcional)
+      const inputImg = document.getElementById("imagenes");
+      if(inputImg){
+        inputImg.addEventListener("change", e=>{
+          const cont = document.getElementById("preview"); cont.innerHTML="";
+          [...e.target.files].forEach(f=>{
+            const url = URL.createObjectURL(f);
+            const img = document.createElement("img"); img.src = url; cont.appendChild(img);
+          });
+        });
+      }
+    });
+
+    /* ===== Poblar selector de complejos ===== */
+    async function poblarSelectComplejos() {
+      try {
+        const data = await fetch(`${backendUrl}/datos_complejos`).then(r=>r.json());
+        const sel = document.getElementById("complejo");
+        const previo = localStorage.getItem("complejoActivo") || "";
+        sel.innerHTML = '<option value="">-- Elegí tu complejo --</option>';
+        Object.keys(data || {}).forEach(k=>{
+          const opt = document.createElement("option");
+          opt.value = k; opt.textContent = data[k]?.nombre || k;
+          if (k === previo) opt.selected = true;
+          sel.appendChild(opt);
+        });
+      } catch(_) {}
+    }
+
+    /* ===== Login ===== */
+    function entrarAdmin(){
+      const complejo = document.getElementById("complejo").value;
+      const clave = document.getElementById("clave").value;
+      if(!complejo || !clave){ alert("Elegí tu complejo e ingresá la contraseña"); return; }
+      showLoader("Verificando…");
+      fetch(`${backendUrl}/login`,{
+        method:"POST", headers:{ "Content-Type":"application/json" },
+        body: JSON.stringify({ complejo, password: clave })
+      })
+      .then(res=>{ if(!res.ok) throw new Error("Login fallido"); return res.json(); })
+      .then(()=>{
+        complejoActivo = complejo;
+        localStorage.setItem("complejoActivo", complejo);
+        document.getElementById("panel").style.display="block";
+        document.getElementById("loginPanel").style.display="none";
+        document.getElementById("tituloComplejo").textContent = `Administración: ${complejo}`;
+        cargarDatos();
+        cargarReservas().then(()=>cargarTurnos());
+      })
+      .catch(()=> alert("Contraseña incorrecta"))
+      .finally(hideLoader);
+    }
+    function cerrarSesion(){ location.reload(); }
+
+    /* ===== Cargar datos del complejo ===== */
+    function cargarDatos(){
+      showLoader("Cargando datos…");
+      fetch(`${backendUrl}/datos_complejos`)
+      .then(r=>r.json())
+      .then(data=>{
         const info = data[complejoActivo] || {};
+        // Generales
         document.getElementById("nombreComplejo").value = info.nombre || "";
         document.getElementById("ciudadComplejo").value = info.ciudad || "";
         document.getElementById("iframeMapa").value = info.maps || "";
 
-        document.querySelectorAll("#listaServicios input").forEach(cb => {
+        // Servicios
+        document.querySelectorAll("#listaServicios input").forEach(cb=>{
           cb.checked = (info.servicios || []).includes(cb.value);
         });
 
-        const preview = document.getElementById("preview");
-        preview.innerHTML = "";
-        (info.imagenes || []).forEach((src, index) => {
-          const div = document.createElement("div");
-          const img = document.createElement("img"); img.src = src;
-          const btn = document.createElement("button"); btn.textContent = "Eliminar";
-          btn.onclick = () => eliminarImagen(index);
-          div.appendChild(img); div.appendChild(btn); preview.appendChild(div);
-        });
-
-        const horarios = info.horarios || {};
+        // Horarios
         const tabla = document.getElementById("tablaHorarios");
         tabla.innerHTML = "";
         const ordenDias = ["Lunes","Martes","Miércoles","Jueves","Viernes","Sábado","Domingo"];
-        ordenDias.forEach(dia => {
+        ordenDias.forEach(dia=>{
           const fila = document.createElement("tr");
           const desde = document.createElement("select");
           const hasta = document.createElement("select");
-          for (let h = 0; h <= 23; h++) {
-            const hora = h.toString().padStart(2, "0") + ":00";
+          for(let h=0; h<=23; h++){
+            const hora = h.toString().padStart(2,"0")+":00";
             desde.appendChild(new Option(hora, hora));
             hasta.appendChild(new Option(hora, hora));
           }
-          desde.value = horarios?.[dia]?.desde || "18:00";
-          hasta.value = horarios?.[dia]?.hasta || "23:00";
+          desde.value = info?.horarios?.[dia]?.desde || "18:00";
+          hasta.value = info?.horarios?.[dia]?.hasta || "23:00";
           fila.innerHTML = `<td>${dia}</td>`;
           const td1 = document.createElement("td"); td1.appendChild(desde);
           const td2 = document.createElement("td"); td2.appendChild(hasta);
@@ -304,247 +365,277 @@
           tabla.appendChild(fila);
         });
 
+        // Canchas
         mostrarCanchas(info.canchas || []);
-      });
-  }
+      })
+      .finally(hideLoader);
+    }
 
-  function mostrarCanchas(canchas) {
-    const lista = document.getElementById("listaCanchas");
-    lista.innerHTML = "";
-    canchas.forEach((cancha, index) => {
+    /* ===== Guardar secciones ===== */
+    function guardarDatosGenerales(){
+      const nombre = document.getElementById("nombreComplejo").value.trim();
+      const ciudad = document.getElementById("ciudadComplejo").value.trim();
+      const maps = document.getElementById("iframeMapa").value.trim();
+      guardarEnJson({ nombre, ciudad, maps });
+      alert("Datos guardados");
+    }
+    function guardarHorarios(){
+      const filas = document.querySelectorAll("#tablaHorarios tr");
+      const nuevos = {};
+      filas.forEach(f=>{
+        const dia = f.children[0].textContent;
+        const desde = f.children[1].querySelector("select").value;
+        const hasta = f.children[2].querySelector("select").value;
+        nuevos[dia] = { desde, hasta };
+      });
+      guardarEnJson({ horarios: nuevos });
+      alert("Horarios guardados");
+    }
+    function guardarServicios(){
+      const marcados = [...document.querySelectorAll("#listaServicios input:checked")].map(x=>x.value);
+      guardarEnJson({ servicios: marcados });
+      alert("Servicios guardados");
+    }
+    function guardarEnJson(parcial){
+      fetch(`${backendUrl}/datos_complejos`)
+        .then(res=>res.json())
+        .then(json=>{
+          json[complejoActivo] = { ...(json[complejoActivo]||{}), ...parcial };
+          return fetch(`${backendUrl}/guardarDatos`, {
+            method:"POST", headers:{ "Content-Type":"application/json" },
+            body: JSON.stringify(json)
+          });
+        })
+        .then(()=>cargarDatos())
+        .catch(()=>{});
+    }
+
+    /* ===== Canchas ===== */
+    function mostrarCanchas(canchas){
+      const lista = document.getElementById("listaCanchas");
+      lista.innerHTML = "";
+      canchas.forEach((cancha, index)=>{
+        const div = document.createElement("div");
+        div.className = "cancha";
+        div.innerHTML = `
+          <div class="row">
+            <div>
+              <label class="chip">Nombre de la cancha</label>
+              <input id="nombreCancha${index}" value="${cancha.nombre||""}" placeholder="Ej: F5 Techada" />
+            </div>
+            <div>
+              <label class="chip">Jugadores</label>
+              <input id="jugadores${index}" value="${cancha.jugadores||""}" placeholder="Ej: 10" inputmode="numeric" />
+            </div>
+          </div>
+          <div class="row3" style="margin-top:10px;">
+            <div>
+              <label class="chip">Precio total</label>
+              <input id="precioTotal${index}" value="${cancha.precioTotal||""}" placeholder="Ej: 20000" inputmode="numeric" />
+            </div>
+            <div>
+              <label class="chip">Precio por jugador</label>
+              <input id="precioPorJugador${index}" value="${cancha.precioPorJugador||""}" placeholder="Ej: 2000" inputmode="numeric" />
+            </div>
+            <div>
+              <label class="chip">Seña</label>
+              <input id="senia${index}" value="${cancha.senia||""}" placeholder="Ej: 4000" inputmode="numeric" />
+            </div>
+          </div>
+          <div style="margin-top:10px; display:flex; gap:10px; flex-wrap:wrap;">
+            <button class="btn-mini danger" onclick="eliminarCancha(${index})">Eliminar</button>
+          </div>
+        `;
+        lista.appendChild(div);
+      });
+    }
+    function agregarCancha(){
+      const lista = document.getElementById("listaCanchas");
+      const i = lista.children.length;
       const div = document.createElement("div");
+      div.className = "cancha";
       div.innerHTML = `
-        <label>Nombre de la cancha</label><br/>
-        <input id="nombreCancha${index}" value="${cancha.nombre || ''}" placeholder="Nombre de la cancha" /><br/>
-        <label>Precio total de la cancha</label><br/>
-        <input id="precioTotal${index}" value="${cancha.precioTotal || ''}" placeholder="Precio total" /><br/>
-        <label>Precio por jugador</label><br/>
-        <input id="precioPorJugador${index}" value="${cancha.precioPorJugador || ''}" placeholder="Precio por jugador" /><br/>
-        <label>Cantidad de jugadores</label><br/>
-        <input id="jugadores${index}" value="${cancha.jugadores || ''}" placeholder="Cantidad de jugadores" /><br/>
-        <label>Seña obligatoria por turno</label><br/>
-        <input id="senia${index}" value="${cancha.senia || ''}" placeholder="Ej: 3000" /><br/>
-        <button onclick="eliminarCancha(${index})">Eliminar</button>
-        <hr/>
+        <div class="row">
+          <div>
+            <label class="chip">Nombre de la cancha</label>
+            <input id="nombreCancha${i}" placeholder="Ej: F7 Sintética" />
+          </div>
+          <div>
+            <label class="chip">Jugadores</label>
+            <input id="jugadores${i}" placeholder="Ej: 14" inputmode="numeric" />
+          </div>
+        </div>
+        <div class="row3" style="margin-top:10px;">
+          <div>
+            <label class="chip">Precio total</label>
+            <input id="precioTotal${i}" placeholder="Ej: 30000" inputmode="numeric" />
+          </div>
+          <div>
+            <label class="chip">Precio por jugador</label>
+            <input id="precioPorJugador${i}" placeholder="Ej: 2140" inputmode="numeric" />
+          </div>
+          <div>
+            <label class="chip">Seña</label>
+            <input id="senia${i}" placeholder="Ej: 5000" inputmode="numeric" />
+          </div>
+        </div>
       `;
       lista.appendChild(div);
-    });
-  }
-
-  function guardarCanchas() {
-    const divs = document.querySelectorAll("#listaCanchas > div");
-    const nuevas = [];
-    divs.forEach((div, i) => {
-      nuevas.push({
-        nombre: document.getElementById(`nombreCancha${i}`).value,
-        precioTotal: document.getElementById(`precioTotal${i}`).value,
-        precioPorJugador: document.getElementById(`precioPorJugador${i}`).value,
-        jugadores: document.getElementById(`jugadores${i}`).value,
-        senia: document.getElementById(`senia${i}`).value
-      });
-    });
-    guardarEnJson({ canchas: nuevas });
-    alert("Canchas guardadas");
-    cargarTurnos();
-  }
-
-  function agregarCancha() {
-    fetch(`${backendUrl}/datos_complejos`)
-      .then(r => r.json())
-      .then(json => {
-        const info = json[complejoActivo] || {};
-        info.canchas = info.canchas || [];
-        info.canchas.push({ nombre: "", precioTotal: "", precioPorJugador: "", jugadores: "", senia: "" });
-        guardarEnJson({ canchas: info.canchas });
-        cargarDatos();
-      });
-  }
-
-  function guardarHorarios() {
-    const tabla = document.querySelectorAll("#tablaHorarios tr");
-    const nuevos = {};
-    tabla.forEach(fila => {
-      const dia = fila.children[0].textContent;
-      const desde = fila.children[1].querySelector("select").value;
-      const hasta = fila.children[2].querySelector("select").value;
-      nuevos[dia] = { desde, hasta };
-    });
-    guardarEnJson({ horarios: nuevos });
-    alert("Horarios guardados");
-    cargarTurnos();
-  }
-
-  function guardarDatosGenerales() {
-    const nombre = document.getElementById("nombreComplejo").value;
-    const ciudad = document.getElementById("ciudadComplejo").value;
-    const maps = document.getElementById("iframeMapa").value;
-    guardarEnJson({ nombre, ciudad, maps });
-    alert("Datos generales guardados");
-  }
-
-  function guardarServicios() {
-    const seleccionados = Array.from(document.querySelectorAll("#listaServicios input:checked")).map(cb => cb.value);
-    guardarEnJson({ servicios: seleccionados });
-    alert("Servicios guardados");
-  }
-
-  function eliminarCancha(index) {
-    fetch(`${backendUrl}/datos_complejos`)
-      .then(r => r.json())
-      .then(json => {
-        const info = json[complejoActivo] || {};
-        info.canchas.splice(index, 1);
-        guardarEnJson({ canchas: info.canchas });
-        cargarDatos();
-      });
-  }
-
-  function eliminarImagen(index) {
-    fetch(`${backendUrl}/datos_complejos`)
-      .then(r => r.json())
-      .then(json => {
-        const info = json[complejoActivo] || {};
-        info.imagenes.splice(index, 1);
-        guardarEnJson({ imagenes: info.imagenes });
-        cargarDatos();
-      });
-  }
-
-  function guardarEnJson(parcial) {
-    fetch(`${backendUrl}/datos_complejos`)
-      .then(res => res.json())
-      .then(json => {
-        json[complejoActivo] = { ...json[complejoActivo], ...parcial };
-        fetch(`${backendUrl}/guardarDatos`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(json)
+      window.scrollTo({ top: div.getBoundingClientRect().top + window.scrollY - 100, behavior: "smooth" });
+    }
+    function guardarCanchas(){
+      const divs = document.querySelectorAll("#listaCanchas .cancha");
+      const nuevas = [];
+      divs.forEach((div, i)=>{
+        nuevas.push({
+          nombre: document.getElementById(`nombreCancha${i}`)?.value || "",
+          precioTotal: document.getElementById(`precioTotal${i}`)?.value || "",
+          precioPorJugador: document.getElementById(`precioPorJugador${i}`)?.value || "",
+          jugadores: document.getElementById(`jugadores${i}`)?.value || "",
+          senia: document.getElementById(`senia${i}`)?.value || ""
         });
       });
-  }
-
-  // ===== Turnos (render) =====
-  function cargarTurnos() {
-    fetch(`${backendUrl}/datos_complejos`)
-      .then(r => r.json())
-      .then(json => {
-        const info = json[complejoActivo] || {};
-        fetch(`${backendUrl}/reservas`)
-          .then(r => r.json())
-          .then(reservas => {
-            const container = document.getElementById("tablasTurnosCanchas");
-            container.innerHTML = "";
-
-            const canchas = info.canchas || [];
-            for (const cancha of canchas) {
-              const div = document.createElement("div");
-              const idTabla = `turnosAdmin-${(cancha.nombre || 'cancha').replace(/\s+/g, '_')}`;
-              div.innerHTML = `<h3>${cancha.nombre || "Cancha"}</h3><div id="${idTabla}"></div>`;
-              container.appendChild(div);
-              renderTablaTurnosAdmin(info, cancha, reservas, idTabla);
-            }
+      guardarEnJson({ canchas: nuevas });
+      alert("Canchas guardadas");
+      cargarDatos();
+    }
+    function eliminarCancha(index){
+      fetch(`${backendUrl}/datos_complejos`)
+        .then(r=>r.json())
+        .then(json=>{
+          const info = json[complejoActivo] || {};
+          info.canchas = (info.canchas || []);
+          info.canchas.splice(index,1);
+          return fetch(`${backendUrl}/guardarDatos`, {
+            method:"POST", headers:{ "Content-Type":"application/json" },
+            body: JSON.stringify({ ...json, [complejoActivo]: info })
           });
-      });
-  }
-
-  function renderTablaTurnosAdmin(info, cancha, reservas, contenedorId) {
-    const horarios = info.horarios || {};
-    const hoy = new Date();
-    const container = document.getElementById(contenedorId);
-
-    let html = '<table class="turnos"><thead><tr><th>Hora</th>';
-
-    const dias = [];
-    for (let i = 0; i < 7; i++) {
-      const fecha = new Date();
-      fecha.setDate(hoy.getDate() + i);
-      const nombreDia = diasSemana[fecha.getDay()];
-      const dia = String(fecha.getDate()).padStart(2, '0');
-      const mes = String(fecha.getMonth() + 1).padStart(2, '0');
-      dias.push({ nombre: nombreDia, fecha: `${dia}/${mes}`, fechaReal: fecha });
-      html += `<th>${nombreDia}<br>${dia}/${mes}</th>`;
+        })
+        .then(()=>cargarDatos());
     }
 
-    html += '</tr></thead><tbody>';
+    /* ===== Reservas / Turnos ===== */
+    function cargarReservas(){ return fetch(`${backendUrl}/reservas`).then(r=>r.json()); }
 
-    for (let h = 0; h < 24; h++) {
-      const hora = `${String(h).padStart(2, '0')}:00`;
-
-      const mostrarFila = dias.some(d => {
-        const hDia = getHorario(horarios, d.nombre);
-        return entre(hora, hDia.desde || '18:00', hDia.hasta || '23:00');
+    function cargarTurnos(){
+      fetch(`${backendUrl}/datos_complejos`)
+      .then(r=>r.json())
+      .then(json=>{
+        const info = json[complejoActivo] || {};
+        return fetch(`${backendUrl}/reservas`).then(r=>r.json()).then(reservas=>{
+          const container = document.getElementById("tablasTurnosCanchas");
+          container.innerHTML = "";
+          const canchas = info.canchas || [];
+          for(const cancha of canchas){
+            const card = document.createElement("div");
+            card.className = "card";
+            const idTabla = `turnosAdmin-${(cancha.nombre || "cancha").replace(/\s+/g,"_")}`;
+            card.innerHTML = `<h3>${cancha.nombre || "Cancha"}</h3><div class="tabla-scroll"><div id="${idTabla}"></div></div>`;
+            container.appendChild(card);
+            renderTablaTurnosAdmin(info, cancha, reservas, idTabla);
+          }
+        });
       });
-      if (!mostrarFila) continue;
+    }
 
-      html += `<tr><td>${hora}</td>`;
+    function renderTablaTurnosAdmin(info, cancha, reservas, contenedorId){
+      const horarios = info.horarios || {};
+      const hoy = new Date();
+      const container = document.getElementById(contenedorId);
 
-      for (const d of dias) {
-        const clave = `${complejoActivo}-${cancha.nombre}-${d.nombre}-${hora}`;
-        const turno = reservas[clave];
+      let html = '<table class="turnos"><thead><tr><th>Hora</th>';
+      const dias = [];
+      for(let i=0;i<7;i++){
+        const fecha = new Date(); fecha.setDate(hoy.getDate()+i);
+        const nombreDia = diasSemana[fecha.getDay()];
+        const dia = String(fecha.getDate()).padStart(2,'0');
+        const mes = String(fecha.getMonth()+1).padStart(2,'0');
+        dias.push({ nombre: nombreDia, fecha: `${dia}/${mes}`, fechaReal: fecha });
+        html += `<th>${nombreDia}<br>${dia}/${mes}</th>`;
+      }
+      html += '</tr></thead><tbody>';
 
-        const hDia = getHorario(horarios, d.nombre);
-        const desde = hDia.desde || '18:00';
-        const hasta = hDia.hasta || '23:00';
+      for(let h=0; h<24; h++){
+        const hora = `${String(h).padStart(2,'0')}:00`;
+        const visible = dias.some(d=>{
+          const hDia = getHorario(horarios, d.nombre);
+          return entre(hora, hDia.desde || '18:00', hDia.hasta || '23:00');
+        });
+        if(!visible) continue;
 
-        if (!entre(hora, desde, hasta)) {
-          html += '<td class="deshabilitado">Cerrado</td>';
-        } else if (turno?.bloqueado) {
-          html += `<td class="bloque">Bloqueado<br>
-                     <button class="btn-mini secondary" onclick="desbloquearTurno('${clave}')">✔️</button>
-                   </td>`;
-        } else if (turno) {
-          html += `<td class="reservado">
-                     ${turno.nombre}<br><small>${turno.telefono || ''}</small><br>
-                     <button class="btn-mini secondary" onclick="cancelarTurno('${clave}')">❌</button>
-                   </td>`;
-        } else {
-          html += `<td class="disponible">
-                     Disponible<br>
-                     <button class="btn-mini" onclick="bloquearTurno('${clave}')">🚫</button>
-                   </td>`;
+        html += `<tr><td>${hora}</td>`;
+        for(const d of dias){
+          const clave = `${complejoActivo}-${cancha.nombre}-${d.nombre}-${hora}`;
+          const hDia = getHorario(horarios, d.nombre);
+          const desde = hDia.desde || "18:00";
+          const hasta = hDia.hasta || "23:00";
+
+          // cerrado
+          if(!entre(hora, desde, hasta)){ html += `<td class="off">Cerrado</td>`; continue; }
+
+          // pasado
+          const esHoy = (new Date().toDateString() === d.fechaReal.toDateString());
+          if(esHoy){
+            const [HH,MM] = hora.split(":").map(Number);
+            const t = new Date(); const comp = new Date(); comp.setHours(HH,MM,0,0);
+            if(comp < t){ html += `<td class="off">Pasado</td>`; continue; }
+          }
+
+          // estado
+          const r = reservas[clave];
+          if(r && r.bloqueado){
+            html += `<td class="bloque">
+              Bloqueado<br>
+              <button class="btn-mini success" onclick="desbloquearTurno('${clave}')">Desbloquear</button>
+            </td>`;
+          }else if(r){
+            html += `<td class="reservado">
+              Reservado<br>
+              <button class="btn-mini danger" onclick="cancelarTurno('${clave}')">Cancelar</button>
+            </td>`;
+          }else{
+            html += `<td class="ok">
+              Libre<br>
+              <button class="btn-mini" onclick="bloquearTurno('${clave}')">Bloquear</button>
+            </td>`;
+          }
         }
+        html += `</tr>`;
       }
 
-      html += '</tr>';
+      html += `</tbody></table>`;
+      container.innerHTML = html;
     }
 
-    html += '</tbody></table>';
-    container.innerHTML = `<div class="tabla-scroll">${html}</div>`;
-  }
-
-  // ===== Acciones de reservas (admin) =====
-  function cancelarTurno(clave) {
-    if (!confirm("¿Seguro que querés cancelar esta reserva?")) return;
-    fetch(`${backendUrl}/reservas`)
-      .then(r => r.json())
-      .then(json => { delete json[clave]; guardarReservas(json); });
-  }
-
-  function bloquearTurno(clave) {
-    fetch(`${backendUrl}/reservas`)
-      .then(r => r.json())
-      .then(json => { json[clave] = { bloqueado: true }; guardarReservas(json); });
-  }
-
-  function desbloquearTurno(clave) {
-    fetch(`${backendUrl}/reservas`)
-      .then(r => r.json())
-      .then(json => { delete json[clave]; guardarReservas(json); });
-  }
-
-  function guardarReservas(json) {
-    fetch(`${backendUrl}/guardarReservas`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(json)
-    }).then(() => {
-      alert("Reserva actualizada");
-      cargarTurnos();
-    });
-  }
+    function cancelarTurno(clave){
+      if(!confirm("¿Seguro que querés cancelar esta reserva?")) return;
+      fetch(`${backendUrl}/reservas`).then(r=>r.json()).then(json=>{
+        delete json[clave]; guardarReservas(json);
+      });
+    }
+    function bloquearTurno(clave){
+      fetch(`${backendUrl}/reservas`).then(r=>r.json()).then(json=>{
+        json[clave] = { bloqueado:true }; guardarReservas(json);
+      });
+    }
+    function desbloquearTurno(clave){
+      fetch(`${backendUrl}/reservas`).then(r=>r.json()).then(json=>{
+        delete json[clave]; guardarReservas(json);
+      });
+    }
+    function guardarReservas(json){
+      fetch(`${backendUrl}/guardarReservas`,{
+        method:"POST", headers:{ "Content-Type":"application/json" },
+        body: JSON.stringify(json)
+      }).then(()=>{
+        alert("Reserva actualizada");
+        cargarTurnos();
+      });
+    }
   </script>
 </body>
 </html>
+
 
 
 
