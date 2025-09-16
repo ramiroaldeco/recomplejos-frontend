@@ -1,68 +1,94 @@
 <!DOCTYPE html>
 <html lang="es">
 <head>
-  <meta charset="UTF-8">
-  <title>Reserva confirmada</title>
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <style>
-    body {
-      font-family: 'Segoe UI', sans-serif;
-      background-color: #f0fff0;
-      text-align: center;
-      padding: 40px;
-    }
-    h1 { color: #00aa55; margin-bottom: 8px; }
-    p  { font-size: 18px; margin: 6px 0; }
-    button{
-      margin-top:18px; padding:10px 16px; border:none; border-radius:10px;
-      background:#00aa55; color:#fff; cursor:pointer; font-size:16px;
-    }
-    small{color:#2b6e44; display:block; margin-top:8px;}
-  </style>
+<meta charset="UTF-8" />
+<title>Pago aprobado</title>
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#0d1512; --surface:#101915; --card:#121f19; --text:#eaf6f0; --muted:#b7c8c1;
+  --brand:#0b8457; --brand-2:#06c184; --accent:#b6ff6b; --border:rgba(182,255,107,.14);
+}
+*{box-sizing:border-box}
+body{margin:0;font-family:Inter,system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif;background:var(--bg);color:var(--text);
+  padding-left:env(safe-area-inset-left);padding-right:env(safe-area-inset-right);}
+body::before{content:"";position:fixed;inset:-20% -10% auto -10%;height:120vh;pointer-events:none;z-index:0;
+ background:
+  radial-gradient(40% 35% at 15% 15%, rgba(11,132,87,.18), transparent 60%),
+  radial-gradient(45% 40% at 85% 10%, rgba(182,255,107,.10), transparent 60%),
+  radial-gradient(40% 35% at 80% 75%, rgba(6,193,132,.12), transparent 60%);
+ filter:blur(30px) saturate(130%);animation:blobs 18s ease-in-out infinite alternate;}
+@keyframes blobs{0%{transform:translateY(-2%) scale(1)}100%{transform:translateY(2%) scale(1.03)}}
+
+.wrap{min-height:calc(100dvh - env(safe-area-inset-top) - env(safe-area-inset-bottom));display:flex;align-items:center;justify-content:center;padding:24px}
+.card{background:var(--card);border:1px solid var(--border);border-radius:16px;box-shadow:0 12px 28px rgba(0,0,0,.38);padding:22px 18px;max-width:520px;width:100%;text-align:center}
+.icon{width:84px;height:84px;border-radius:50%;margin:4px auto 12px;display:grid;place-items:center;
+ background:linear-gradient(180deg,#d5ffd0,#b6ff6b);color:#072018;font-size:44px;font-weight:900}
+h1{margin:8px 0 6px;font-size:26px}
+p.sub{margin:0;color:var(--muted)}
+.details{margin:14px 0 2px;color:#cfe3da;font-size:14px}
+.badge{display:inline-block;background:#16211c;border:1px solid var(--border);padding:6px 10px;border-radius:10px;margin:4px 4px}
+.actions{display:grid;gap:10px;margin-top:14px}
+.btn{min-height:46px;border-radius:12px;border:0;cursor:pointer;font-weight:800}
+.btn-primary{background:linear-gradient(180deg,#d5ffd0,#b6ff6b);color:#072018}
+.btn-ghost{background:#16211c;border:1px solid var(--border);color:#eaf6f0}
+.small{font-size:13px;color:var(--muted);margin-top:8px}
+</style>
 </head>
 <body>
-  <h1>¡Tu pago fue exitoso! 🎉</h1>
-  <p>Estamos confirmando tu reserva automáticamente.</p>
-  <p id="msg">En unos segundos ya debería verse como <strong>Reservado</strong> en el calendario.</p>
-  <button id="btnVolver">Volver al complejo</button>
-  <small>Si no lo ves enseguida, recargá la página del complejo luego de unos segundos.</small>
+<div class="wrap">
+  <div class="card">
+    <div class="icon">✓</div>
+    <h1>¡Pago aprobado!</h1>
+    <p class="sub">Tu seña fue procesada correctamente. La reserva quedó confirmada.</p>
 
-  <script>
-    // ✅ Importante:
-    // Esta página ya NO guarda la reserva. La confirmación real la hace el WEBHOOK en tu backend.
-    // Acá solo limpiamos datos locales y damos un botón para volver al complejo.
+    <div id="info" class="details" style="display:none">
+      <div class="badge" id="bComplejo"></div>
+      <div class="badge" id="bCancha"></div>
+      <div class="badge" id="bDiaHora"></div>
+    </div>
 
-    // Intentamos armar un link de vuelta al complejo usando la "clave" guardada antes del pago.
-    // Formato esperado de clave: `${slug}-${cancha}-${Dia}-${HH:MM}`
-    let volverA = "inicio.html"; // fallback
-    try {
-      const clave = localStorage.getItem("reserva_clave");
-      if (clave && typeof clave === "string") {
-        const slug = clave.split("-")[0];
-        if (slug) volverA = `frontend.html?complejo=${encodeURIComponent(slug)}`;
-      }
-    } catch(_) {}
+    <div class="actions">
+      <button class="btn btn-primary" onclick="goToComplex()">Volver al complejo</button>
+      <button class="btn btn-ghost" onclick="location.href='inicio.html'">Ir al inicio</button>
+    </div>
 
-    // Limpiamos posibles restos para evitar duplicaciones en futuros pagos
-    try {
-      localStorage.removeItem("reserva_clave");
-      localStorage.removeItem("reserva_nombre");
-      localStorage.removeItem("reserva_telefono");
-    } catch(_) {}
-
-    // Botón "Volver al complejo"
-    document.getElementById("btnVolver").addEventListener("click", () => {
-      location.href = volverA;
-    });
-
-    // Mensaje amable luego de un ratito
-    setTimeout(() => {
-      const el = document.getElementById("msg");
-      if (el) el.textContent = "Listo. Ya podés volver al complejo para ver el turno marcado como Reservado.";
-    }, 1200);
-  </script>
+<script>
+function parseReserva(){
+  const clave = localStorage.getItem('reserva_clave') || new URLSearchParams(location.search).get('clave');
+  if(!clave) return null;
+  // formato: complejo-cancha-dia-hora
+  const [complejo, cancha, dia, hora] = clave.split('-');
+  return { clave, complejo, cancha, dia, hora };
+}
+function paint(){
+  const r = parseReserva(); if(!r) return;
+  document.getElementById('info').style.display='block';
+  document.getElementById('bComplejo').textContent = 'Complejo: ' + r.complejo;
+  document.getElementById('bCancha').textContent   = 'Cancha: ' + (r.cancha||'');
+  document.getElementById('bDiaHora').textContent  = (r.dia||'') + ' ' + (r.hora||'');
+}
+function goToComplex(){
+  const r = parseReserva();
+  if(r && r.complejo){ location.href = `frontend.html?complejo=${encodeURIComponent(r.complejo)}`; }
+  else if (history.length>1){ history.back(); } else { location.href='inicio.html'; }
+}
+function copyClave(){
+  const r = parseReserva(); if(!r) return alert('No hay código para copiar.');
+  navigator.clipboard?.writeText(r.clave).then(()=>alert('Código copiado')).catch(()=>alert('No se pudo copiar'));
+}
+async function share(){
+  const r = parseReserva(); if(!navigator.share || !r) return alert('Compartir no disponible');
+  try{ await navigator.share({title:'Reserva confirmada',text:`Código: ${r.clave}`,url:location.href}); }catch(_){}
+}
+paint();
+</script>
 </body>
 </html>
+
 
 
 
