@@ -327,8 +327,13 @@
   });
 
   async function poblarComplejos(){
-    const data = await fetch(`${backendUrl}/datos_complejos`).then(r=>r.json());
-    datosComplejos = data || {};
+    try{
+      const data = await fetch(`${backendUrl}/datos_complejos`).then(r=>r.json());
+      datosComplejos = data || {};
+    }catch(e){
+      console.error("Error cargando datos_complejos:", e);
+      datosComplejos = {};
+    }
     const sel = $("#complejo");
     sel.innerHTML = '<option value="">— Seleccione su complejo —</option>';
     Object.keys(datosComplejos).forEach(k=>{
@@ -493,45 +498,23 @@
   }
 
   /* ===================== (TELÉFONO) NORMALIZACIÓN Y VALIDACIÓN ===================== */
-  // Limpia caracteres, intenta normalizar a +54 9 … si parece número argentino
   function normalizarTelefono(raw){
     if(!raw) return "";
-    let d = String(raw).replace(/\D/g,'');       // solo dígitos
-    if(d.startsWith('00')) d = d.slice(2);       // 00XX -> internacional
-    if(d.startsWith('0'))  d = d.slice(1);       // descarta 0 inicial local
-
-    // Si empieza con 54 y NO tiene el 9 de móvil, lo agregamos (WhatsApp AR)
-    if(d.startsWith('54') && !d.startsWith('549') && d.length>=11){
-      d = '549' + d.slice(2);
-    }
-    // Si no trae país y parece largo de móvil local (10/11), asumimos AR móvil
-    if(!d.startsWith('54') && (d.length===10 || d.length===11)){
-      d = '549' + d; // heurística para WhatsApp AR
-    }
+    let d = String(raw).replace(/\D/g,'');
+    if(d.startsWith('00')) d = d.slice(2);
+    if(d.startsWith('0'))  d = d.slice(1);
+    if(d.startsWith('54') && !d.startsWith('549') && d.length>=11){ d = '549' + d.slice(2); }
+    if(!d.startsWith('54') && (d.length===10 || d.length===11)){ d = '549' + d; }
     return '+' + d;
   }
   function telefonoValido(raw){
     const d = String(raw).replace(/\D/g,'');
-    return d.length>=10 && d.length<=15; // umbral razonable
-  }
-  async function solicitarTelefonoValido(valorInicial=""){
-    let intento = valorInicial;
-    while(true){
-      const r = prompt("Teléfono (WhatsApp) en formato local o internacional:", intento||"");
-      if(r===null) return null; // cancelar
-      if(!telefonoValido(r)){ alert("Número inválido. Ingrese entre 10 y 15 dígitos (puede usar +54...)."); intento = r; continue; }
-      const norm = normalizarTelefono(r);
-      if(confirm("Confirmar teléfono: " + norm + " ?")) return norm;
-      intento = r;
-    }
+    return d.length>=10 && d.length<=15;
   }
   function mostrarTelefonoCorto(tel){
-    // +5493511234567 -> +54 9 351 123 4567 (aprox visual)
     if(!tel) return "s/d";
     const d = tel.replace(/\D/g,'');
-    if(d.startsWith('549') && d.length>=12){
-      return `+54 9 ${d.slice(3,6)} ${d.slice(6,9)} ${d.slice(9)}`;
-    }
+    if(d.startsWith('549') && d.length>=12){ return `+54 9 ${d.slice(3,6)} ${d.slice(6,9)} ${d.slice(9)}`; }
     if(tel.startsWith('+')) return tel;
     return '+'+d;
   }
@@ -599,12 +582,10 @@
         clase="bloq"; estadoTxt="Bloqueado"; bloqueados++;
         acciones = `<button class="btn" onclick="desbloquearTurno('${kNew}','${kOld}')">Eliminar bloqueo</button>`;
       } else if(r){
-        clase="res"; 
-        // ====== (NUEVO) Mostrar nombre y teléfono en el estado ======
+        clase="res";
         const nombre   = r.nombre   ? r.nombre   : "—";
         const telefono = r.telefono ? mostrarTelefonoCorto(r.telefono) : "s/d";
         estadoTxt = `Reservado · ${nombre} · ${telefono}`;
-        // ============================================================
         reservados++;
         acciones = `<button class="btn-danger" onclick="cancelarTurno('${kNew}','${kOld}')">Cancelar</button>`;
       } else {
@@ -630,7 +611,36 @@
     `;
   }
 
-  /* (TABLERO → ACCIONES DE TURNOS) */
+  /* (TABLERO → ACCIONES DE TURNOS) — teléfono opcional para el dueño */
+  async function reservarManual(kNew,kOld){
+    const nombre = prompt("Nombre del cliente:");
+    if (!nombre) return;
+
+    // Teléfono OPCIONAL: si lo escribe, valido/normalizo; si lo deja vacío, sigo.
+    let telefono = prompt("Teléfono (WhatsApp) — opcional:");
+    if (telefono === null) return;        // canceló
+    telefono = (telefono || "").trim();
+    if (telefono) {
+      if (!telefonoValido(telefono)) {
+        const seguir = confirm("El número parece inválido. ¿Guardar sin teléfono?");
+        if (!seguir) return;
+        telefono = "";
+      } else {
+        telefono = normalizarTelefono(telefono);
+      }
+    }
+
+    const { senia, total } = datosCanchaActual();
+    const sugerida = senia || Math.round(total*0.3);
+    const monto = Number(prompt("Seña cobrada ($):", String(sugerida))||"0");
+
+    await cargarY(()=>{
+      if(reservas[kNew]?.bloqueado){ alert("El horario está bloqueado."); return; }
+      reservas[kNew] = { status:"manual", nombre, telefono, monto, creado:Date.now() };
+      delete reservas[kOld];
+    });
+  }
+
   function guardarTodo(obj){
     return fetch(`${backendUrl}/guardarReservas`,{
       method:"POST", headers:{ "Content-Type":"application/json" }, body: JSON.stringify(obj||{})
@@ -648,37 +658,7 @@
   function desbloquearTurno(kNew,kOld){
     cargarY(()=>{ delete reservas[kNew]; delete reservas[kOld]; });
   }
-  async function reservarManual(kNew,kOld){
-    <script>
-  /* (TABLERO → ACCIONES DE TURNOS) — teléfono opcional para el dueño */
-  async function reservarManual(kNew,kOld){
-    const nombre = prompt("Nombre del cliente:");
-    if (!nombre) return;
 
-    // Teléfono OPCIONAL: si lo escribe, valido/normalizo; si lo deja vacío, sigo.
-    let telefono = prompt("Teléfono (WhatsApp) — opcional:");
-    if (telefono === null) return;        // canceló el diálogo
-    telefono = (telefono || "").trim();
-    if (telefono) {
-      if (!telefonoValido(telefono)) {
-        const seguir = confirm("El número parece inválido. ¿Guardar sin teléfono?");
-        if (!seguir) return;
-        telefono = "";
-      } else {
-        telefono = normalizarTelefono(telefono);
-      }
-    }
-
-    const { senia, total } = datosCanchaActual();
-    const sugerida = senia || Math.round(total*0.3);
-    const monto = Number(prompt("Seña cobrada ($):", String(sugerida))||"0");
-
-    cargarY(()=>{
-      if(reservas[kNew]?.bloqueado){ alert("El horario está bloqueado."); return; }
-      reservas[kNew] = { status:"manual", nombre, telefono, monto, creado:Date.now() };
-      delete reservas[kOld];
-    });
-  }
   /* (CAJA → EXCEL) */
   function parseClave(k){
     let m = k.match(/^(.+?)-(.+?)-(\d{4}-\d{2}-\d{2})-(\d{2}:\d{2})$/);
