@@ -131,6 +131,10 @@
     animation:spin 1s linear infinite; margin:0 auto 12px}
   @keyframes spin{to{transform:rotate(360deg)}}
   #loadingOverlay .msg{color:#fff;font-weight:800}
+
+  /* (ANALÍTICAS) barra mini de ocupación */
+  .ibar{height:8px;background:#0b0b0b;border:1px solid #1a2b1f;border-radius:999px;overflow:hidden}
+  .ibar>i{display:block;height:100%;background:linear-gradient(180deg, var(--brand), var(--brand-2));}
 </style>
 </head>
 
@@ -172,11 +176,12 @@
 
     <!-- (APP) — contenido protegido; aparece recién después del login -->
     <div id="app" style="display:none">
-      <!-- (TABS/NAVEGACIÓN) chips: Tablero / Caja / Config / Ayuda -->
+      <!-- (TABS/NAVEGACIÓN) chips: Tablero / Caja / Config / Analíticas / Ayuda -->
       <div class="tabs" id="tabs">
         <div class="tab active" data-tab="tablero" onclick="activar('tablero')">Tablero</div>
         <div class="tab" data-tab="caja" onclick="activar('caja')">Caja</div>
         <div class="tab" data-tab="config" onclick="activar('config')">Config</div>
+        <div class="tab" data-tab="analiticas" onclick="activar('analiticas')">Analíticas</div>
         <div class="tab" data-tab="ayuda" onclick="activar('ayuda')">Ayuda</div>
       </div>
 
@@ -264,6 +269,68 @@
         </div>
       </section>
 
+      <!-- (ANALÍTICAS) — indicadores y resúmenes -->
+      <section id="analiticas" class="card" style="display:none">
+        <h2>Analíticas</h2>
+
+        <div class="grid g2">
+          <div>
+            <label class="chip">Desde</label>
+            <input type="date" id="anaDesde">
+          </div>
+          <div>
+            <label class="chip">Hasta</label>
+            <input type="date" id="anaHasta">
+          </div>
+          <div>
+            <label class="chip">Cancha</label>
+            <select id="anaCancha">
+              <option value="__ALL__">Todas</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="sep"></div>
+
+        <!-- KPIs -->
+        <div class="kpi" id="anaKPIs" style="margin-bottom:10px"></div>
+
+        <!-- Ocupación general -->
+        <div class="card" style="margin:10px 0">
+          <h3 style="margin:0 0 8px">Ocupación</h3>
+          <div class="row" style="gap:16px;align-items:center">
+            <div style="min-width:110px"><span id="anaOcupacionTxt" class="estado">—</span></div>
+            <div class="ibar" style="flex:1 1 auto"><i id="anaOcupacionBar" style="width:0%"></i></div>
+          </div>
+        </div>
+
+        <div class="grid g2">
+          <div class="card">
+            <h3 style="margin:0 0 8px">Reservas por día de semana</h3>
+            <table class="tabla-dia">
+              <thead><tr><th>Día</th><th>Cantidad</th></tr></thead>
+              <tbody id="anaTablaSemanal"></tbody>
+            </table>
+          </div>
+
+          <div class="card">
+            <h3 style="margin:0 0 8px">Horas más demandadas</h3>
+            <table class="tabla-dia">
+              <thead><tr><th>Hora</th><th>Cantidad</th></tr></thead>
+              <tbody id="anaTopHoras"></tbody>
+            </table>
+          </div>
+        </div>
+
+        <div class="card" style="margin-top:10px">
+          <h3 style="margin:0 0 8px">Detalle por cancha</h3>
+          <table class="tabla-dia">
+            <thead><tr><th>Cancha</th><th>Reservas</th><th>Ocupación</th></tr></thead>
+            <tbody id="anaPorCancha"></tbody>
+          </table>
+        </div>
+      </section>
+
       <!-- (AYUDA) — guía rápida -->
       <section id="ayuda" class="card" style="display:none">
         <h2>Ayuda</h2>
@@ -299,6 +366,7 @@
     document.querySelectorAll('.tab').forEach(t=>t.classList.toggle('active', t.dataset.tab===id));
     document.querySelectorAll('#app section').forEach(s=> s.style.display='none');
     document.getElementById(id).style.display = 'block';
+    if(id === 'analiticas') renderAnaliticas();  /* ← recalcula al abrir */
   }
 
   /* (LOADER UI) */
@@ -322,7 +390,6 @@
     $("#fechaDia").value = hoy;
     $("#cajaDesde").value = hoy;
     $("#cajaHasta").value = hoy;
-    /* (TABLERO) refrescar al cambiar fecha */
     document.getElementById("fechaDia").addEventListener("change", renderDia);
   });
 
@@ -342,7 +409,6 @@
       opt.textContent = datosComplejos[k]?.nombre || k;
       sel.appendChild(opt);
     });
-    // si viene ?complejo= lo tildo
     const qs = new URL(location.href).searchParams.get("complejo");
     if(qs && sel.querySelector(`[value="${qs}"]`)) sel.value = qs;
   }
@@ -362,7 +428,6 @@
       const j = await r.json();
       if(!r.ok || !j.ok) throw new Error("login");
 
-      // OK: recién ahora habilito la app y las tabs
       loginOK = true;
       complejoActivo = complejo;
       datos = datosComplejos[complejoActivo] || {};
@@ -371,8 +436,26 @@
 
       await cargarBase();
       await cargarReservas();
-      cargarControlesTurnos(); /* (COMPAT) llamada preexistente */
+      cargarControlesTurnos(); /* compat */
       renderDia();
+
+      /* (ANALÍTICAS) defaults + listeners */
+      const anaDesde = document.getElementById("anaDesde");
+      const anaHasta = document.getElementById("anaHasta");
+      const anaCancha = document.getElementById("anaCancha");
+      if(anaDesde && anaHasta && anaCancha){
+        const hoy = new Date();
+        const first = new Date(hoy.getFullYear(), hoy.getMonth(), 1);
+        anaDesde.value = toISODate(first);
+        anaHasta.value = toISODate(hoy);
+
+        anaCancha.innerHTML = '<option value="__ALL__">Todas</option>';
+        (datos.canchas||[]).forEach(c=> anaCancha.appendChild(new Option(c.nombre,c.nombre)));
+
+        anaDesde.addEventListener("change", renderAnaliticas);
+        anaHasta.addEventListener("change", renderAnaliticas);
+        anaCancha.addEventListener("change", renderAnaliticas);
+      }
     }catch(e){
       alert("Contraseña incorrecta o complejo inválido.");
     }finally{
@@ -380,8 +463,7 @@
     }
   }
 
-  /* (COMPAT) — stub para mantener la llamada existente sin romper nada */
-  function cargarControlesTurnos(){ /* intencionalmente vacío */ }
+  function cargarControlesTurnos(){ /* intencionalmente vacío (compat) */ }
 
   /* (BASE Y RESERVAS) */
   async function cargarBase(){
@@ -478,6 +560,13 @@
     if(!silent) alert("Canchas guardadas.");
     const sel = $("#selCancha"); sel.innerHTML = ""; arr.forEach(c=> sel.appendChild(new Option(c.nombre,c.nombre)));
     actualizarChipsPrecio();
+
+    // actualizar lista de canchas en Analíticas
+    const anaSel = document.getElementById("anaCancha");
+    if(anaSel){
+      anaSel.innerHTML = '<option value="__ALL__">Todas</option>';
+      (datos.canchas||[]).forEach(c=> anaSel.appendChild(new Option(c.nombre,c.nombre)));
+    }
   }
 
   /* (CONFIG → HORARIOS) */
@@ -497,7 +586,7 @@
     alert("Horarios guardados.");
   }
 
-  /* ===================== (TELÉFONO) NORMALIZACIÓN Y VALIDACIÓN ===================== */
+  /* ===================== (TELÉFONO) NORMALIZACIÓN Y VISUAL ===================== */
   function normalizarTelefono(raw){
     if(!raw) return "";
     let d = String(raw).replace(/\D/g,'');
@@ -518,7 +607,7 @@
     if(tel.startsWith('+')) return tel;
     return '+'+d;
   }
-  /* ================================================================================ */
+  /* ============================================================================ */
 
   /* (TABLERO) — datos de cancha y render del día */
   function datosCanchaActual(){
@@ -616,7 +705,7 @@
     const nombre = prompt("Nombre del cliente:");
     if (!nombre) return;
 
-    // Teléfono OPCIONAL: si lo escribe, valido/normalizo; si lo deja vacío, sigo.
+    // Teléfono OPCIONAL
     let telefono = prompt("Teléfono (WhatsApp) — opcional:");
     if (telefono === null) return;        // canceló
     telefono = (telefono || "").trim();
@@ -658,6 +747,132 @@
   function desbloquearTurno(kNew,kOld){
     cargarY(()=>{ delete reservas[kNew]; delete reservas[kOld]; });
   }
+
+  /* ========================= (ANALÍTICAS) ========================= */
+  function iterarDias(desdeISO, hastaISO, cb){
+    const d0 = fromISO(desdeISO);
+    const d1 = fromISO(hastaISO);
+    for(let d=new Date(d0); d<=d1; d.setDate(d.getDate()+1)){
+      cb(new Date(d));
+    }
+  }
+  function horasRangoParaFecha(fechaISO){
+    const nd = nombreDiaISO(fechaISO);
+    const h  = (datos.horarios||{})[nd] || {};
+    const desde = h.desde || "18:00";
+    const hasta = h.hasta || "23:00";
+    const out = [];
+    for(let H=0; H<24; H++){
+      const hh = `${String(H).padStart(2,"0")}:00`;
+      if(entre(hh, desde, hasta)) out.push(hh);
+    }
+    return out;
+  }
+  function contarSlotsRango(desdeISO, hastaISO, canchaNameOrAll="__ALL__"){
+    let total = 0;
+    const canchas = (canchaNameOrAll==="__ALL__") ? (datos.canchas||[]).map(c=>c.nombre) : [canchaNameOrAll];
+    iterarDias(desdeISO, hastaISO, d=>{
+      const f = toISODate(d);
+      const horas = horasRangoParaFecha(f);
+      total += horas.length * canchas.length;
+    });
+    return total;
+  }
+  function canchaInfo(nombre){
+    const c = (datos.canchas||[]).find(x=> x.nombre===nombre) || {};
+    return { jugadores: Number(c.jugadores||0), precioPP: Number(c.precioPP||0), senia: Number(c.senia||0) };
+  }
+  function renderAnaliticas(){
+    if(!loginOK) return;
+    const desde = document.getElementById("anaDesde")?.value;
+    const hasta = document.getElementById("anaHasta")?.value;
+    const selCancha = document.getElementById("anaCancha")?.value || "__ALL__";
+    if(!desde || !hasta) return;
+
+    let reservasCont = 0, bloqueosCont = 0;
+    let seniasCobradas = 0, totalEstimado = 0;
+    const porDiaSemana = {Domingo:0,Lunes:0,Martes:0,Miércoles:0,Jueves:0,Viernes:0,Sábado:0};
+    const porHora = {};
+    const porCancha = {};
+
+    for(const k of Object.keys(reservas||{})){
+      const p = parseClave(k); if(!p || p.complejo!==complejoActivo) continue;
+      if(p.tipo==="nuevo"){
+        if(desde && p.fechaISO < desde) continue;
+        if(hasta && p.fechaISO > hasta) continue;
+      } else { continue; }
+      if(selCancha!=="__ALL__" && p.cancha !== selCancha) continue;
+
+      const r = reservas[k] || {};
+      if(r.bloqueado){ bloqueosCont++; continue; }
+
+      reservasCont++;
+      seniasCobradas += Number(r.monto || r.senia || r.precio || 0) || 0;
+
+      const ci = canchaInfo(p.cancha);
+      totalEstimado += (ci.jugadores||0) * (ci.precioPP||0);
+
+      try{
+        const dname = diasSemana[fromISO(p.fechaISO).getDay()];
+        porDiaSemana[dname] = (porDiaSemana[dname]||0) + 1;
+      }catch(_){}
+      porHora[p.hora] = (porHora[p.hora]||0) + 1;
+      porCancha[p.cancha] = (porCancha[p.cancha]||0) + 1;
+    }
+
+    const slots = contarSlotsRango(desde, hasta, selCancha);
+    const ocupacion = slots ? Math.round((reservasCont/slots)*100) : 0;
+
+    document.getElementById("anaKPIs").innerHTML = `
+      <div class="box"><div class="chip">Reservas</div><div class="num">${reservasCont}</div></div>
+      <div class="box"><div class="chip">Señas cobradas</div><div class="num">${formatoARS(seniasCobradas)}</div></div>
+      <div class="box"><div class="chip">Total estimado</div><div class="num">${formatoARS(totalEstimado)}</div></div>
+      <div class="box"><div class="chip">Bloqueos</div><div class="num">${bloqueosCont}</div></div>
+    `;
+
+    const bar = document.getElementById("anaOcupacionBar");
+    const txt = document.getElementById("anaOcupacionTxt");
+    if(bar) bar.style.width = ocupacion + "%";
+    if(txt) txt.textContent = `${ocupacion}% de ocupación (${reservasCont}/${slots||0} turnos)`;
+
+    const orden = ["Lunes","Martes","Miércoles","Jueves","Viernes","Sábado","Domingo"];
+    const tSem = document.getElementById("anaTablaSemanal");
+    tSem.innerHTML = "";
+    orden.forEach(d=>{
+      const tr = document.createElement("tr");
+      tr.innerHTML = `<td>${d}</td><td>${porDiaSemana[d]||0}</td>`;
+      tSem.appendChild(tr);
+    });
+
+    const tHoras = document.getElementById("anaTopHoras");
+    tHoras.innerHTML = "";
+    Object.entries(porHora).sort((a,b)=> b[1]-a[1]).slice(0,8).forEach(([hora,cant])=>{
+      const tr = document.createElement("tr");
+      tr.innerHTML = `<td>${hora}</td><td>${cant}</td>`;
+      tHoras.appendChild(tr);
+    });
+
+    const tCancha = document.getElementById("anaPorCancha");
+    tCancha.innerHTML = "";
+    const canchasList = (selCancha==="__ALL__") ? (datos.canchas||[]).map(c=>c.nombre) : [selCancha];
+    canchasList.forEach(cn=>{
+      const resC = porCancha[cn]||0;
+      const sC = contarSlotsRango(desde, hasta, cn);
+      const occC = sC ? Math.round((resC/sC)*100) : 0;
+      const tr = document.createElement("tr");
+      tr.innerHTML = `
+        <td>${cn}</td>
+        <td>${resC}</td>
+        <td>
+          <div class="row" style="gap:10px;align-items:center">
+            <div style="min-width:52px">${occC}%</div>
+            <div class="ibar" style="width:180px"><i style="width:${occC}%"></i></div>
+          </div>
+        </td>`;
+      tCancha.appendChild(tr);
+    });
+  }
+  /* =============================================================== */
 
   /* (CAJA → EXCEL) */
   function parseClave(k){
