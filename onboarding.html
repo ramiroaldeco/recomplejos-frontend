@@ -15,6 +15,7 @@
     .g3{grid-template-columns:1fr 1fr 1fr}
     label{font-weight:600}
     input,textarea,select{width:100%;padding:10px;border:1px solid #e2e5ec;border-radius:8px;background:#fbfbfd}
+    input[type="tel"]{inputmode:numeric; }
     button{background:var(--prim);color:#fff;border:none;padding:10px 16px;border-radius:10px;cursor:pointer}
     .card{border:1px solid #eee;border-radius:12px;padding:14px;margin:14px 0}
     .row{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
@@ -26,6 +27,23 @@
     th{background:var(--prim);color:#fff}
     small{color:#555}
     pre{white-space:pre-wrap;background:#fbfbfd;border:1px solid #eee;padding:10px;border-radius:8px;max-height:260px;overflow:auto}
+
+    /* ===== Responsive móvil - onboarding.html ===== */
+    @media (max-width: 992px) {
+      .wrap { margin: 12px; padding: 14px; }
+      .grid.g2, .grid.g3 { grid-template-columns: 1fr !important; }
+      table { font-size: 14px; }
+      th, td { padding: 6px; }
+      .row { gap: 6px; }
+    }
+    @media (max-width: 600px) {
+      header { padding: 12px 14px; }
+      .card { padding: 12px; }
+      input, textarea, select { padding: 9px; }
+      button { width: 100%; padding: 12px; }
+      pre { max-height: 220px; }
+      .footer-save{position:sticky;bottom:0;background:#fff;padding:10px;border-top:1px solid #eee;box-shadow:0 -6px 18px rgba(0,0,0,.06)}
+    }
   </style>
 </head>
 <body>
@@ -112,23 +130,23 @@
         </div>
         <div>
           <label>WhatsApp del dueño (con país, ej. 549351xxxxxxx)</label>
-          <input id="whatsappDueño" type="tel" placeholder="549351XXXXXXX">
+          <input id="whatsappDueño" type="tel" placeholder="549351XXXXXXX" inputmode="numeric" pattern="[0-9]*">
         </div>
       </div>
       <small>Si los completás, el sistema puede enviarte notificaciones cuando se confirme una reserva.</small>
     </div>
 
-    <!-- Guardar datos -->
-    <div class="card">
-      <div class="row">
-        <button type="button" id="btnGuardar">Guardar datos del complejo</button>
-        <div id="msgDatos"></div>
+    <!-- Guardar -->
+    <div class="card footer-save">
+      <div class="row" style="width:100%">
+        <button type="button" id="btnGuardar" style="flex:1">Guardar datos del complejo</button>
+        <div id="msgDatos" style="min-width:240px"></div>
       </div>
     </div>
 
     <!-- Resumen -->
     <div class="card">
-      <h2>Resumen (lo que se enviará a <code>datos_complejos.json</code>)</h2>
+      <h2>Resumen (lo que se guardará)</h2>
       <pre id="preview"></pre>
     </div>
   </div>
@@ -185,7 +203,8 @@ function agregarCancha(val={}) {
       <div style="display:flex;align-items:end"><button type="button" class="btnEliminar">Eliminar</button></div>
     </div>`;
   $("#canchas").appendChild(div);
-  div.querySelector(".btnEliminar").onclick = () => { div.remove(); refrescarPreview(); };
+  div.querySelector(".btnEliminar").onclick = () => { div.remove(); refrescarPreview(); saveDraft(); };
+  div.addEventListener("input", ()=>{ refrescarPreview(); saveDraft(); });
 }
 
 function leerCanchas() {
@@ -206,7 +225,7 @@ function validarSlug(id) {
   return /^[a-zA-Z0-9_-]+$/.test(id);
 }
 
-function payloadDatos() {
+function payloadDesdeFormulario() {
   const horarios = {};
   document.querySelectorAll("#tbodyHorarios tr").forEach(tr=>{
     const dia = tr.children[0].textContent;
@@ -234,23 +253,73 @@ function payloadDatos() {
 }
 
 function refrescarPreview() {
-  $("#preview").textContent = JSON.stringify(payloadDatos(), null, 2);
+  $("#preview").textContent = JSON.stringify(payloadDesdeFormulario(), null, 2);
 }
 
-/* ====== GUARDAR DATOS ====== */
-async function idDisponible(id) {
-  const actuales = await fetch(`${backend}/datos_complejos?t=${Date.now()}`).then(r => r.json());
-  return !actuales[id];
+/* ====== DRAFT (auto-guardado local) ====== */
+const DRAFT_KEY = "onboarding-draft";
+
+function saveDraft(){
+  try { localStorage.setItem(DRAFT_KEY, JSON.stringify(payloadDesdeFormulario())); } catch {}
+}
+function loadDraft(){
+  try {
+    const raw = localStorage.getItem(DRAFT_KEY);
+    if (!raw) return;
+    const obj = JSON.parse(raw);
+    completarFormularioDesde(obj);
+  } catch {}
+}
+function clearDraft(){ try{ localStorage.removeItem(DRAFT_KEY); }catch{} }
+
+function completarFormularioDesde(obj){
+  const id = Object.keys(obj||{})[0]; if(!id) return;
+  const d = obj[id];
+
+  $("#id").value = id || "";
+  $("#clave").value = d.clave || "";
+  $("#nombre").value = d.nombre || "";
+  $("#ciudad").value = d.ciudad || "";
+  $("#maps").value = d.maps || "";
+
+  // servicios
+  (d.servicios || []).forEach(s=>{
+    const cb = Array.from(document.querySelectorAll("#servicios input")).find(x=>x.value===s);
+    if (cb) cb.checked = true;
+  });
+
+  // horarios
+  if (d.horarios){
+    document.querySelectorAll("#tbodyHorarios tr").forEach(tr=>{
+      const dia = tr.children[0].textContent;
+      const desde = tr.children[1].querySelector("select");
+      const hasta = tr.children[2].querySelector("select");
+      if (d.horarios[dia]){
+        desde.value = d.horarios[dia].desde || desde.value;
+        hasta.value = d.horarios[dia].hasta || hasta.value;
+      }
+    });
+  }
+
+  // canchas
+  $("#canchas").innerHTML = "";
+  (d.canchas || []).forEach(c=>agregarCancha(c));
+
+  // contacto
+  $("#emailDueño").value = d.emailDueño || "";
+  $("#whatsappDueño").value = d.whatsappDueño || "";
+
+  refrescarPreview();
 }
 
-async function guardarDatos() {
+/* ====== GUARDAR DATOS (DB) ====== */
+async function guardarDatos(silencioso=false) {
   const id = $("#id").value.trim();
   const msg = $("#msgDatos");
-  msg.textContent = ""; 
-  msg.className = "";
+  if (!silencioso){ msg.textContent = ""; msg.className = ""; }
 
-  if (!id) { msg.textContent = "Falta el ID"; msg.className = "err"; return; }
-  if (!validarSlug(id)) { msg.textContent = "ID inválido. Usá solo letras, números, - y _"; msg.className = "err"; return; }
+  if (!id) { if(!silencioso){msg.textContent="Falta el ID"; msg.className="err";} return false; }
+  if (!validarSlug(id)) { if(!silencioso){msg.textContent="ID inválido. Usá solo letras, números, - y _"; msg.className="err";} return false; }
 
   // Guardar localmente el ID para la sección OAuth
   localStorage.setItem("complejoId", id);
@@ -258,7 +327,7 @@ async function guardarDatos() {
   try {
     // Traigo lo actual del backend (con cache-buster)
     const actuales = await fetch(`${backend}/datos_complejos?t=${Date.now()}`).then(r => r.json());
-    const nuevo = payloadDatos();
+    const nuevo = payloadDesdeFormulario();
     const merged = { ...actuales, ...nuevo };
 
     // Guardo en el backend
@@ -269,33 +338,33 @@ async function guardarDatos() {
     });
 
     if (!resp.ok) {
-      msg.textContent = "No se pudo guardar en el servidor (HTTP " + resp.status + ").";
-      msg.className = "err";
-      return;
+      if(!silencioso){ msg.textContent = "No se pudo guardar en el servidor (HTTP " + resp.status + ")."; msg.className = "err"; }
+      return false;
     }
 
-    // Verificación inmediata: vuelvo a leer del backend y chequeo que esté el ID
+    // Verificación inmediata
     const verif = await fetch(`${backend}/datos_complejos?t=${Date.now()}`).then(r => r.json());
-    if (verif[id]) {
-      msg.textContent = "Datos del complejo guardados ✅";
-      msg.className = "ok";
-    } else {
-      msg.textContent = "Guardado enviado pero el servidor no refleja el cambio. Probá de nuevo (Ctrl+F5) o revisá logs.";
-      msg.className = "err";
+    const ok = Boolean(verif[id]);
+    if (!silencioso){
+      msg.textContent = ok ? "Datos del complejo guardados ✅" :
+                             "Guardado enviado pero el servidor no refleja el cambio.";
+      msg.className = ok ? "ok" : "err";
     }
 
+    // persistencia local
+    saveDraft();
     refrescarPreview();
     pintarEstadoMP();
+    return ok;
   } catch (e) {
     console.error(e);
-    msg.textContent = "Error de red/JS al guardar.";
-    msg.className = "err";
+    if(!silencioso){ msg.textContent = "Error de red/JS al guardar."; msg.className = "err"; }
+    return false;
   }
 }
 
 /* ====== OAUTH MERCADO PAGO ====== */
 function getComplejoId() {
-  // intenta por query ?complejo=, luego por input, luego por localStorage
   const byQuery = new URLSearchParams(location.search).get("complejo") || "";
   if (byQuery) return byQuery.trim();
   const byInput = $("#id")?.value?.trim();
@@ -336,11 +405,20 @@ async function pintarEstadoMP() {
   }
 }
 
-function conectarMP() {
+async function conectarMP() {
   const complejoId = getComplejoId();
   if (!complejoId) return alert("Completá el ID/slug del complejo primero.");
-  localStorage.setItem("complejoId", complejoId);
-  location.href = `${backend}/mp/conectar?complejoId=${encodeURIComponent(complejoId)}`;
+
+  // 1) guardar en BD (silencioso)
+  const ok = await guardarDatos(true);
+  // 2) guardar draft local por si acaso
+  saveDraft();
+  // 3) redirigir a OAuth si el guardado salió bien
+  if (ok) {
+    location.href = `${backend}/mp/conectar?complejoId=${encodeURIComponent(complejoId)}`;
+  } else {
+    alert("No se pudo guardar los datos antes de conectar MP.");
+  }
 }
 
 async function probarCobro() {
@@ -373,14 +451,18 @@ async function probarCobro() {
 }
 
 /* ====== EVENTOS ====== */
-document.getElementById("btnAgregarCancha").onclick = () => { agregarCancha(); };
-document.getElementById("btnGuardar").onclick = guardarDatos;
-document.getElementById("btnConectar").onclick = conectarMP;
-document.getElementById("btnProbarMP").onclick = probarCobro;
+$("#btnAgregarCancha").onclick = () => { agregarCancha(); saveDraft(); };
+$("#btnGuardar").onclick = async () => {
+  const ok = await guardarDatos(false);
+  if (ok) clearDraft();
+};
+$("#btnConectar").onclick = conectarMP;
+$("#btnProbarMP").onclick = probarCobro;
 
 document.addEventListener("input", e=>{
   if (["id","clave","nombre","ciudad","maps","emailDueño","whatsappDueño"].includes(e.target.id)) {
     refrescarPreview();
+    saveDraft();
     if (e.target.id === "id") {
       localStorage.setItem("complejoId", e.target.value.trim());
       pintarEstadoMP();
@@ -388,17 +470,18 @@ document.addEventListener("input", e=>{
   }
 });
 document.addEventListener("change", e=>{
-  if (e.target.closest("#servicios") || e.target.closest("#tbodyHorarios") || e.target.closest("#canchas")) refrescarPreview();
+  if (e.target.closest("#servicios") || e.target.closest("#tbodyHorarios") || e.target.closest("#canchas")){
+    refrescarPreview(); saveDraft();
+  }
 });
-document.getElementById("canchas").addEventListener("input", refrescarPreview);
 
 /* ====== INIT ====== */
 armarHorarios();
 armarServicios();
 agregarCancha();        // una cancha de ejemplo
 refrescarPreview();
+
 window.addEventListener("load", () => {
-  // si viene ?complejo= en la URL, lo llena en el input y lo guarda
   const q = new URLSearchParams(location.search);
   const slug = q.get("complejo");
   if (slug) {
@@ -407,9 +490,12 @@ window.addEventListener("load", () => {
     localStorage.setItem("complejoId", slug);
   }
 
-  // si volvió del OAuth con éxito
+  // Restaurar draft si existe
+  loadDraft();
+
+  // Mensaje al volver del OAuth (si lo usás)
   if (q.get("mp") === "ok") {
-    const msg = document.getElementById("msgDatos");
+    const msg = $("#msgDatos");
     if (msg) { msg.textContent = "Mercado Pago conectado ✅ (no olvides Guardar datos)"; msg.className = "ok"; }
   }
 
@@ -418,9 +504,3 @@ window.addEventListener("load", () => {
 </script>
 </body>
 </html>
-
-
-
-
-
-
