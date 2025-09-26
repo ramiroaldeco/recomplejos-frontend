@@ -15,7 +15,7 @@
     .g3{grid-template-columns:1fr 1fr 1fr}
     label{font-weight:600}
     input,textarea,select{width:100%;padding:10px;border:1px solid #e2e5ec;border-radius:8px;background:#fbfbfd}
-    input[type="tel"]{inputmode:numeric; }
+    input[type="tel"]{inputmode:numeric;}
     button{background:var(--prim);color:#fff;border:none;padding:10px 16px;border-radius:10px;cursor:pointer}
     .card{border:1px solid #eee;border-radius:12px;padding:14px;margin:14px 0}
     .row{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
@@ -391,16 +391,19 @@ async function pintarEstadoMP() {
     const dj = await r.json();
     if (dj.ok && dj.conectado) {
       estadoEl.textContent = "🟢 Mercado Pago conectado";
-      btnCon.style.display = "none";
+      btnCon.style.display = "inline-block";
+      btnCon.textContent = "Reconectar";
       btnTest.style.display = "inline-block";
     } else {
       estadoEl.textContent = "🔴 Mercado Pago NO conectado";
       btnCon.style.display = "inline-block";
+      btnCon.textContent = "Conectar con Mercado Pago";
       btnTest.style.display = "none";
     }
   } catch {
     estadoEl.textContent = "No se pudo chequear el estado de MP.";
     btnCon.style.display = "inline-block";
+    btnCon.textContent = "Conectar con Mercado Pago";
     btnTest.style.display = "none";
   }
 }
@@ -411,9 +414,9 @@ async function conectarMP() {
 
   // 1) guardar en BD (silencioso)
   const ok = await guardarDatos(true);
-  // 2) guardar draft local por si acaso
   saveDraft();
-  // 3) redirigir a OAuth si el guardado salió bien
+
+  // 2) abrir OAuth (misma pestaña; si preferís en nueva, usá window.open)
   if (ok) {
     location.href = `${backend}/mp/conectar?complejoId=${encodeURIComponent(complejoId)}`;
   } else {
@@ -493,13 +496,17 @@ window.addEventListener("load", () => {
   // Restaurar draft si existe
   loadDraft();
 
-  // Mensaje al volver del OAuth (si lo usás)
+  // Mensaje al volver del OAuth
   if (q.get("mp") === "ok") {
     const msg = $("#msgDatos");
     if (msg) { msg.textContent = "Mercado Pago conectado ✅ (no olvides Guardar datos)"; msg.className = "ok"; }
+    // refrescos rápidos de estado por si el token tarda un instante en escribirse
+    pintarEstadoMP();
+    setTimeout(pintarEstadoMP, 1200);
+    setTimeout(pintarEstadoMP, 3000);
+  } else {
+    pintarEstadoMP();
   }
-
-  pintarEstadoMP();
 });
 </script>
 </body>
