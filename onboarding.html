@@ -424,28 +424,63 @@ async function conectarMP() {
   }
 }
 
+/* ====== NUEVO: Probar cobro con cancha/fecha/hora reales ====== */
+function tomarPrimeraCancha() {
+  const card = document.querySelector("#canchas .card");
+  if (!card) return null;
+  const nombre = card.querySelector(".c-nombre")?.value.trim();
+  const senia  = Number(card.querySelector(".c-senia")?.value.trim() || "0");
+  return nombre ? { nombre, senia } : null;
+}
+
+function fechaManiana() {
+  const d = new Date();
+  d.setDate(d.getDate() + 1);
+  return d.toISOString().slice(0,10); // YYYY-MM-DD
+}
+
 async function probarCobro() {
   const complejoId = getComplejoId();
   if (!complejoId) return alert("Completá el ID/slug del complejo primero.");
+
+  // Aseguro que el complejo y canchas estén guardados en BD
+  const ok = await guardarDatos(true);
+  if (!ok) return alert("No se pudo guardar el complejo antes de probar el cobro.");
+
+  const canchaInfo = tomarPrimeraCancha();
+  if (!canchaInfo) return alert("Agregá al menos una cancha con nombre para probar el cobro.");
+
+  const body = {
+    complejoId,
+    cancha: canchaInfo.nombre,
+    fecha: fechaManiana(),
+    hora: "19:00",            // horario de prueba
+    titulo: "Prueba de seña",
+    precio: 10,
+    nombre: "Prueba",
+    telefono: "000"
+  };
+
   try {
     const r = await fetch(`${backend}/crear-preferencia`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        complejoId,
-        clave: `test-${Date.now()}`,
-        titulo: "Prueba de seña",
-        precio: 10,
-        nombre: "Prueba",
-        telefono: "000"
-      })
+      body: JSON.stringify(body)
     });
     const dj = await r.json();
+
     if (dj?.init_point) {
       location.href = dj.init_point;
     } else {
-      console.log(dj);
-      alert(dj?.error || "No se pudo generar la preferencia de prueba.");
+      // Mensajes más claros
+      const msg = dj?.error || "No se pudo generar la preferencia de prueba.";
+      if (/aún no conectó su Mercado Pago/i.test(msg)) {
+        alert("Este complejo no tiene MP conectado todavía. Tocá 'Conectar con Mercado Pago' y volvé a probar.");
+      } else if (/El turno ya está tomado/i.test(msg)) {
+        alert("El turno de prueba (mañana 19:00) figura ocupado. Cambiá la seña o probá otro horario.");
+      } else {
+        alert(msg);
+      }
     }
   } catch (e) {
     console.error(e);
