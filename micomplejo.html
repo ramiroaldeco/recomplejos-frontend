@@ -135,6 +135,85 @@
   /* (ANALÍTICAS) barra mini de ocupación */
   .ibar{height:8px;background:#0b0b0b;border:1px solid #1a2b1f;border-radius:999px;overflow:hidden}
   .ibar>i{display:block;height:100%;background:linear-gradient(180deg, var(--brand), var(--brand-2));}
+  
+  /* ===== Notificaciones (micomplejo.html) ===== */
+.noti-grid {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  margin-top: 10px;
+}
+
+.noti-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  background: #111;
+  padding: 10px 14px;
+  border-radius: 10px;
+}
+
+.noti-left {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.noti-icon {
+  width: 28px;
+  height: 28px;
+}
+
+.noti-title {
+  font-weight: 600;
+  font-size: 15px;
+}
+
+.noti-desc {
+  font-size: 13px;
+  color: #aaa;
+}
+
+.noti-preview {
+  margin-top: 15px;
+  font-size: 13px;
+  background: #1b1b1b;
+  padding: 8px 10px;
+  border-radius: 6px;
+  color: #ccc;
+}
+
+/* Switch estilo iOS */
+.switch {
+  position: relative;
+  display: inline-block;
+  width: 46px;
+  height: 24px;
+}
+.switch input {display:none;}
+.slider {
+  position: absolute;
+  cursor: pointer;
+  top: 0; left: 0; right: 0; bottom: 0;
+  background-color: #666;
+  transition: .4s;
+  border-radius: 34px;
+}
+.slider:before {
+  position: absolute;
+  content: "";
+  height: 18px; width: 18px;
+  left: 3px; bottom: 3px;
+  background-color: white;
+  transition: .4s;
+  border-radius: 50%;
+}
+input:checked + .slider {
+  background-color: #0b8457; /* verde */
+}
+input:checked + .slider:before {
+  transform: translateX(22px);
+}
 </style>
 </head>
 
@@ -149,7 +228,7 @@
 
   <header>
     <h1>Panel del Propietario</h1>
-    <a class="btn-ghost" href="inicio.html">← Inicio</a>
+    <a class="btn-ghost" href="https://ramiroaldeco.github.io/recomplejos-frontend/">← Inicio</a>
   </header>
 
   <div class="wrap">
@@ -267,6 +346,49 @@
             <button class="btn" onclick="guardarHorarios()">Guardar horarios</button>
           </div>
         </div>
+		<section class="card" id="notificaciones">
+  <h3>Notificaciones</h3>
+  <div class="noti-grid">
+    <!-- WhatsApp -->
+    <div class="noti-item">
+      <div class="noti-left">
+        <img src="https://cdn.jsdelivr.net/gh/simple-icons/simple-icons/icons/whatsapp.svg" alt="WhatsApp" class="noti-icon">
+        <div>
+          <div class="noti-title">Recibir por WhatsApp</div>
+          <div class="noti-desc">
+            Se enviará al WhatsApp del dueño configurado. <br>
+            <small>Ej.: “Reserva confirmada: Ramiro – Fútbol 5 – 22:00 – Seña $2500”</small>
+          </div>
+        </div>
+      </div>
+      <label class="switch">
+        <input type="checkbox" id="swWhats">
+        <span class="slider"></span>
+      </label>
+    </div>
+
+    <!-- Email -->
+    <div class="noti-item">
+      <div class="noti-left">
+        <img src="https://cdn.jsdelivr.net/gh/simple-icons/simple-icons/icons/gmail.svg" alt="Gmail" class="noti-icon">
+        <div>
+          <div class="noti-title">Recibir por Email</div>
+          <div class="noti-desc">Se enviará al e-mail del dueño configurado.</div>
+        </div>
+      </div>
+      <label class="switch">
+        <input type="checkbox" id="swEmail">
+        <span class="slider"></span>
+      </label>
+    </div>
+  </div>
+
+  <div class="noti-preview">
+    <strong>Mensaje de ejemplo:</strong><br>
+    <code>✅ Reserva confirmada: {{nombre}} – {{cancha}} – {{fecha}} {{hora}} – Seña ${{monto}}</code>
+  </div>
+</section>
+
       </section>
 
       <!-- (ANALÍTICAS) — indicadores y resúmenes -->
@@ -747,6 +869,38 @@
   function desbloquearTurno(kNew,kOld){
     cargarY(()=>{ delete reservas[kNew]; delete reservas[kOld]; });
   }
+// ===== Notificaciones (guardar preferencia en localStorage) =====
+const swWhats = document.getElementById("swWhats");
+const swEmail = document.getElementById("swEmail");
+
+// cargar estado guardado
+swWhats.checked = localStorage.getItem("notifWhats") === "1";
+swEmail.checked = localStorage.getItem("notifEmail") === "1";
+
+// guardar cambios al clickear
+swWhats.addEventListener("change", () => {
+  localStorage.setItem("notifWhats", swWhats.checked ? "1" : "0");
+});
+swEmail.addEventListener("change", () => {
+  localStorage.setItem("notifEmail", swEmail.checked ? "1" : "0");
+});
+// ===== Notificaciones (guardar preferencia en localStorage) =====
+const swWhats = document.getElementById("swWhats");
+const swEmail = document.getElementById("swEmail");
+
+if (swWhats && swEmail) {
+  // cargar estado guardado
+  swWhats.checked = localStorage.getItem("notifWhats") === "1";
+  swEmail.checked  = localStorage.getItem("notifEmail") === "1";
+
+  // guardar cambios al clickear
+  swWhats.addEventListener("change", () => {
+    localStorage.setItem("notifWhats", swWhats.checked ? "1" : "0");
+  });
+  swEmail.addEventListener("change", () => {
+    localStorage.setItem("notifEmail", swEmail.checked ? "1" : "0");
+  });
+}
 
   /* ========================= (ANALÍTICAS) ========================= */
   function iterarDias(desdeISO, hastaISO, cb){
