@@ -197,7 +197,7 @@
       <p class="form-title">Tus datos para reservar</p>
       <div class="row">
         <input type="text" id="nombre" placeholder="Tu nombre" autocomplete="name" enterkeyhint="next">
-        <input type="tel" id="telefono" placeholder="Tu teléfono" inputmode="tel" autocomplete="tel" enterkeyhint="done">
+        <input type="tel" id="telefono" placeholder="Tu teléfono" inputmode="tel" autocomplete="tel" enterkeyhint="done" pattern="^[0-9]{10,15}$" required>
       </div>
       <p class="hint">Se usan para identificarte en la reserva y contactarte.</p>
     </div>
@@ -454,17 +454,16 @@
         const res = await fetch(`${backendUrl}/crear-preferencia`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            complejoId: complejoSeleccionado,
-            clave,
-            cancha,
-            senia: Number(senia),
-            precio: Number(senia),     // también “precio” para el server
-            titulo: `Seña de reserva - ${cancha}`,
-            nombre: nombre.trim(),
-            telefono: telefono.trim()
-          })
-        });
+ body: JSON.stringify({
+  complejoId,            // ej: tomado de ?complejo=...
+  cancha,                // nombre exacto que mostrás (“Fútbol 5”, “5”, etc.)
+  fecha,                 // "YYYY-MM-DD" (input date)
+  hora,                  // "HH:MM" (select)
+  titulo: `Seña ${cancha} ${fecha} ${hora}`,
+  precio: senia,         // la seña de esa cancha
+  nombre, telefono
+})
+
 
         const data = await res.json();
 
@@ -493,9 +492,6 @@
   </script>
 </body>
 </html>
-
-
-
 
 
 
