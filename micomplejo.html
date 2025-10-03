@@ -550,16 +550,24 @@ input:checked + .slider:before {
       const j = await r.json();
       if(!r.ok || !j.ok) throw new Error("login");
 
-      loginOK = true;
-      complejoActivo = complejo;
-      datos = datosComplejos[complejoActivo] || {};
-      document.getElementById("loginPanel").style.display = "none";
-      document.getElementById("app").style.display = "block";
+loginOK = true;
+complejoActivo = complejo;
+datos = datosComplejos[complejoActivo] || {};
 
-      await cargarBase();
-      await cargarReservas();
-      cargarControlesTurnos(); /* compat */
-      renderDia();
+// mostrar app (una sola vez)
+document.getElementById("loginPanel").style.display = "none";
+document.getElementById("app").style.display = "block";
+
+// switches de notificaciones
+initNotificaciones();
+
+// cargar base + reservas y renderizar
+await cargarBase();
+await cargarReservas();
+cargarControlesTurnos();   // compat
+renderDia();
+
+
 
       /* (ANALÍTICAS) defaults + listeners */
       const anaDesde = document.getElementById("anaDesde");
@@ -869,38 +877,20 @@ input:checked + .slider:before {
   function desbloquearTurno(kNew,kOld){
     cargarY(()=>{ delete reservas[kNew]; delete reservas[kOld]; });
   }
-// ===== Notificaciones (guardar preferencia en localStorage) =====
-const swWhats = document.getElementById("swWhats");
-const swEmail = document.getElementById("swEmail");
+function initNotificaciones(){
+  const swWhats = document.getElementById("swWhats");
+  const swEmail = document.getElementById("swEmail");
+  if(!swWhats || !swEmail) return;
 
-// cargar estado guardado
-swWhats.checked = localStorage.getItem("notifWhats") === "1";
-swEmail.checked = localStorage.getItem("notifEmail") === "1";
-
-// guardar cambios al clickear
-swWhats.addEventListener("change", () => {
-  localStorage.setItem("notifWhats", swWhats.checked ? "1" : "0");
-});
-swEmail.addEventListener("change", () => {
-  localStorage.setItem("notifEmail", swEmail.checked ? "1" : "0");
-});
-// ===== Notificaciones (guardar preferencia en localStorage) =====
-const swWhats = document.getElementById("swWhats");
-const swEmail = document.getElementById("swEmail");
-
-if (swWhats && swEmail) {
   // cargar estado guardado
   swWhats.checked = localStorage.getItem("notifWhats") === "1";
-  swEmail.checked  = localStorage.getItem("notifEmail") === "1";
+  swEmail.checked = localStorage.getItem("notifEmail") === "1";
 
   // guardar cambios al clickear
-  swWhats.addEventListener("change", () => {
-    localStorage.setItem("notifWhats", swWhats.checked ? "1" : "0");
-  });
-  swEmail.addEventListener("change", () => {
-    localStorage.setItem("notifEmail", swEmail.checked ? "1" : "0");
-  });
+  swWhats.onchange = () => localStorage.setItem("notifWhats", swWhats.checked ? "1" : "0");
+  swEmail.onchange = () => localStorage.setItem("notifEmail", swEmail.checked ? "1" : "0");
 }
+
 
   /* ========================= (ANALÍTICAS) ========================= */
   function iterarDias(desdeISO, hastaISO, cb){
