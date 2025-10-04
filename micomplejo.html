@@ -346,6 +346,25 @@ input:checked + .slider:before {
             <button class="btn" onclick="guardarHorarios()">Guardar horarios</button>
           </div>
         </div>
+		<div class="card" style="margin:10px 0">
+  <h3 style="margin:0 0 8px">Contacto del dueño</h3>
+  <div class="grid g2">
+    <div>
+      <label class="chip">WhatsApp (ej: 5493511234567)</label>
+      <input id="ownerWhats" placeholder="5493511234567">
+    </div>
+    <div>
+      <label class="chip">Email del dueño</label>
+      <input id="ownerEmail" placeholder="dueno@midominio.com">
+    </div>
+  </div>
+  <div class="row" style="margin-top:10px">
+    <button class="btn" onclick="guardarContactoDueno()">Guardar contacto</button>
+  </div>
+  <p class="muted" style="margin-top:8px">
+    Estos datos se usan para enviar las notificaciones si activás los switches de abajo.
+  </p>
+</div>
 		<section class="card" id="notificaciones">
   <h3>Notificaciones</h3>
   <div class="noti-grid">
@@ -592,6 +611,41 @@ renderDia();
       hideLoader();
     }
   }
+function initNotificaciones(){
+  const swWhats = document.getElementById("swWhats");
+  const swEmail = document.getElementById("swEmail");
+  if(!swWhats || !swEmail) return;
+
+  const n = (datos && datos.notif) || {};
+  const wInit = (typeof n.whats === "boolean") ? n.whats : (localStorage.getItem("notifWhats") === "1");
+  const eInit = (typeof n.email === "boolean") ? n.email : (localStorage.getItem("notifEmail") === "1");
+  swWhats.checked = !!wInit;
+  swEmail.checked = !!eInit;
+
+  async function persistir(){
+    localStorage.setItem("notifWhats", swWhats.checked ? "1" : "0");
+    localStorage.setItem("notifEmail", swEmail.checked ? "1" : "0");
+    try{
+      const all = await fetch(`${backendUrl}/datos_complejos`).then(r=>r.json());
+      all[complejoActivo] = {
+        ...(all[complejoActivo] || {}),
+        ...(datos || {}),
+        notif: { whats: swWhats.checked, email: swEmail.checked }
+      };
+      await fetch(`${backendUrl}/guardarDatos`,{
+        method:"POST",
+        headers:{ "Content-Type":"application/json" },
+        body: JSON.stringify(all)
+      });
+      datos.notif = { whats: swWhats.checked, email: swEmail.checked };
+    }catch(e){
+      console.error("No se pudo guardar la preferencia de notificaciones en backend:", e);
+    }
+  }
+
+  swWhats.onchange = persistir;
+  swEmail.onchange  = persistir;
+}
 
   function cargarControlesTurnos(){ /* intencionalmente vacío (compat) */ }
 
@@ -624,7 +678,9 @@ renderDia();
     (datos.canchas||[]).forEach(c=> sel.appendChild(new Option(c.nombre, c.nombre)));
     sel.addEventListener("change", renderDia);
     actualizarChipsPrecio();
-  }
+pintarContactoDueno();   // completa ownerWhats / ownerEmail con lo guardado 
+ }
+
 
   async function cargarReservas(){
     reservas = await fetch(`${backendUrl}/reservas`).then(r=>r.json()).catch(()=> ({}));
@@ -715,6 +771,37 @@ renderDia();
     await fetch(`${backendUrl}/guardarDatos`,{ method:"POST", headers:{ "Content-Type":"application/json" }, body: JSON.stringify(all) });
     alert("Horarios guardados.");
   }
+  async function guardarContactoDueno(){
+  try{
+    const all = await fetch(`${backendUrl}/datos_complejos`).then(r=>r.json());
+    all[complejoActivo] = {
+      ...(all[complejoActivo] || {}),
+      ...(datos || {}),
+      whatsappDueño: document.getElementById("ownerWhats").value.trim(),
+      emailDueño: document.getElementById("ownerEmail").value.trim()
+    };
+    await fetch(`${backendUrl}/guardarDatos`,{
+      method:"POST",
+      headers:{ "Content-Type":"application/json" },
+      body: JSON.stringify(all)
+    });
+    datos.whatsappDueño = all[complejoActivo].whatsappDueño;
+    datos.emailDueño    = all[complejoActivo].emailDueño;
+    alert("Contacto guardado.");
+  }catch(e){
+    console.error(e);
+    alert("No se pudo guardar el contacto.");
+  }
+}
+
+function pintarContactoDueno(){
+  const w = document.getElementById("ownerWhats");
+  const e = document.getElementById("ownerEmail");
+  if(!w || !e) return;
+  w.value = datos?.whatsappDueño || "";
+  e.value = datos?.emailDueño   || "";
+}
+
 
   /* ===================== (TELÉFONO) NORMALIZACIÓN Y VISUAL ===================== */
   function normalizarTelefono(raw){
@@ -832,33 +919,48 @@ renderDia();
 
   /* (TABLERO → ACCIONES DE TURNOS) — teléfono opcional para el dueño */
   async function reservarManual(kNew,kOld){
-    const nombre = prompt("Nombre del cliente:");
-    if (!nombre) return;
+  const nombre = prompt("Nombre del cliente:");
+  if (!nombre) return;
 
-    // Teléfono OPCIONAL
-    let telefono = prompt("Teléfono (WhatsApp) — opcional:");
-    if (telefono === null) return;        // canceló
-    telefono = (telefono || "").trim();
-    if (telefono) {
-      if (!telefonoValido(telefono)) {
-        const seguir = confirm("El número parece inválido. ¿Guardar sin teléfono?");
-        if (!seguir) return;
-        telefono = "";
-      } else {
-        telefono = normalizarTelefono(telefono);
-      }
+  let telefono = prompt("Teléfono (WhatsApp) — opcional:");
+  if (telefono === null) return;
+  telefono = (telefono || "").trim();
+  if (telefono) {
+    if (!telefonoValido(telefono)) {
+      const seguir = confirm("El número parece inválido. ¿Guardar sin teléfono?");
+      if (!seguir) return;
+      telefono = "";
+    } else {
+      telefono = normalizarTelefono(telefono);
     }
-
-    const { senia, total } = datosCanchaActual();
-    const sugerida = senia || Math.round(total*0.3);
-    const monto = Number(prompt("Seña cobrada ($):", String(sugerida))||"0");
-
-    await cargarY(()=>{
-      if(reservas[kNew]?.bloqueado){ alert("El horario está bloqueado."); return; }
-      reservas[kNew] = { status:"manual", nombre, telefono, monto, creado:Date.now() };
-      delete reservas[kOld];
-    });
   }
+
+  const { senia, total } = datosCanchaActual();
+  const sugerida = senia || Math.round(total*0.3);
+  const monto = Number(prompt("Seña cobrada ($):", String(sugerida))||"0");
+
+  await cargarY(()=>{
+    if(reservas[kNew]?.bloqueado){ alert("El horario está bloqueado."); return; }
+    reservas[kNew] = { status:"manual", nombre, telefono, monto, creado:Date.now() };
+    delete reservas[kOld];
+  });
+
+  // 👇 AVISO AL BACKEND (adentro de la función)
+  try{
+    await fetch(`${backendUrl}/notificar-manual`,{
+      method: "POST",
+      headers: {"Content-Type":"application/json"},
+      body: JSON.stringify({
+        clave: kNew,
+        complejoId: complejoActivo,
+        nombre,
+        telefono,
+        monto
+      })
+    });
+  }catch(e){ console.warn("No se pudo notificar la reserva manual:", e); }
+}
+
 
   function guardarTodo(obj){
     return fetch(`${backendUrl}/guardarReservas`,{
@@ -877,21 +979,6 @@ renderDia();
   function desbloquearTurno(kNew,kOld){
     cargarY(()=>{ delete reservas[kNew]; delete reservas[kOld]; });
   }
-function initNotificaciones(){
-  const swWhats = document.getElementById("swWhats");
-  const swEmail = document.getElementById("swEmail");
-  if(!swWhats || !swEmail) return;
-
-  // cargar estado guardado
-  swWhats.checked = localStorage.getItem("notifWhats") === "1";
-  swEmail.checked = localStorage.getItem("notifEmail") === "1";
-
-  // guardar cambios al clickear
-  swWhats.onchange = () => localStorage.setItem("notifWhats", swWhats.checked ? "1" : "0");
-  swEmail.onchange = () => localStorage.setItem("notifEmail", swEmail.checked ? "1" : "0");
-}
-
-
   /* ========================= (ANALÍTICAS) ========================= */
   function iterarDias(desdeISO, hastaISO, cb){
     const d0 = fromISO(desdeISO);
