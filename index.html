@@ -71,56 +71,64 @@
   window.addEventListener("load", prewarmBackend);
 
   /* ===== Buscar canchas (misma lógica + loader) ===== */
-  async function buscarCanchas() {
-    const lista = document.getElementById("listaCanchas");
-    lista.innerHTML = "";
+ async function buscarCanchas() {
+  const lista = document.getElementById("listaCanchas");
+  lista.innerHTML = "";
 
-    const deporte = document.getElementById("deporte").value;
+  const deporte = document.getElementById("deporte").value;
 
-    showLoader("Buscando canchas…");
-    try {
-      const res = await fetch(`${backendUrl}/datos_complejos?t=${Date.now()}`, { cache: "no-store" });
-      const datos = await res.json();
+  showLoader("Buscando canchas…");
+  try {
+    // pedimos los complejos al backend
+    const res = await fetch(`${backendUrl}/datos_complejos?t=${Date.now()}`, { cache: "no-store" });
+    const resp = await res.json();
 
-      complejos = Object.entries(datos).map(([clave, info]) => ({
-        nombre: info.nombre || clave,
-        ciudad: info.ciudad || "Sin ciudad",
-        lat: info.lat,
-        lng: info.lng,
-        deporte: "futbol",
-        link: `frontend.html?complejo=${clave}`
-      }));
+    // 👇 compatibilidad: si el backend devuelve con wrapper de debug, uso resp.data
+    const datos = resp.data || resp;
 
-      let resultados = complejos.filter(c => c.deporte === deporte);
+    // armo la lista de complejos
+    const complejos = Object.entries(datos).map(([clave, info]) => ({
+      nombre: info.nombre || clave,
+      ciudad: info.ciudad || "Sin ciudad",
+      lat: info.lat,
+      lng: info.lng,
+      deporte: "futbol",
+      link: `frontend.html?complejo=${clave}`
+    }));
 
-      if (ciudadSeleccionadaCoords) {
-        const [lng, lat] = ciudadSeleccionadaCoords;
-        resultados.forEach(c => {
-          if (c.lat != null && c.lng != null) {
-            c.distancia = calcularDistancia(lat, lng, c.lat, c.lng);
-          }
-        });
-        resultados.sort((a, b) => (a.distancia ?? Infinity) - (b.distancia ?? Infinity));
-      }
+    // filtro por deporte (por ahora todos "futbol")
+    let resultados = complejos.filter(c => c.deporte === deporte);
 
+    // orden por distancia si hay ciudad seleccionada
+    if (ciudadSeleccionadaCoords) {
+      const [lng, lat] = ciudadSeleccionadaCoords;
       resultados.forEach(c => {
-        const div = document.createElement("div");
-        div.className = "club-card";
-        div.innerHTML = `<h3>${c.nombre}</h3><p>${c.ciudad}</p>`;
-        div.onclick = () => window.location.href = c.link;
-        lista.appendChild(div);
+        if (c.lat != null && c.lng != null) {
+          c.distancia = calcularDistancia(lat, lng, c.lat, c.lng);
+        }
       });
-
-      if (resultados.length === 0) {
-        lista.innerHTML = "<p style='grid-column:1/-1;color:#8a8f98;text-align:center'>No hay complejos registrados.</p>";
-      }
-    } catch (error) {
-      console.error("Error al cargar complejos:", error);
-      lista.innerHTML = "<p style='grid-column:1/-1;color:#b42318;text-align:center'>Error al cargar complejos desde el servidor.</p>";
-    } finally {
-      hideLoader();
+      resultados.sort((a, b) => (a.distancia ?? Infinity) - (b.distancia ?? Infinity));
     }
+
+    // render de los resultados
+    resultados.forEach(c => {
+      const div = document.createElement("div");
+      div.className = "club-card";
+      div.innerHTML = `<h3>${c.nombre}</h3><p>${c.ciudad}</p>`;
+      div.onclick = () => window.location.href = c.link;
+      lista.appendChild(div);
+    });
+
+    if (resultados.length === 0) {
+      lista.innerHTML = "<p style='grid-column:1/-1;color:#8a8f98;text-align:center'>No hay complejos registrados.</p>";
+    }
+  } catch (error) {
+    console.error("Error al cargar complejos:", error);
+    lista.innerHTML = "<p style='grid-column:1/-1;color:#b42318;text-align:center'>Error al cargar complejos desde el servidor.</p>";
+  } finally {
+    hideLoader();
   }
+}
   /* ==== Menú móvil ==== */
   function toggleMenu(){ document.getElementById('mobileMenu').classList.toggle('open'); }
   function closeMenu(){ document.getElementById('mobileMenu').classList.remove('open'); }
@@ -867,8 +875,6 @@ header button:hover::after{ opacity:.35; }
 
 </body>
 </html>
-
-
 
 
 
