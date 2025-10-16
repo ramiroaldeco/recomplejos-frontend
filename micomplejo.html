@@ -214,6 +214,34 @@ input:checked + .slider {
 input:checked + .slider:before {
   transform: translateX(22px);
 }
+.notificaciones {
+  margin-top: 20px;
+  background: rgba(255,255,255,0.05);
+  padding: 12px 16px;
+  border-radius: 10px;
+}
+.switch {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 10px;
+  cursor: pointer;
+  color: #eaf6f0;
+}
+.switch input[type="checkbox"] {
+  width: 20px;
+  height: 20px;
+}
+#guardarNotif {
+  background: var(--brand);
+  color: #fff;
+  border: none;
+  border-radius: 6px;
+  padding: 6px 12px;
+  cursor: pointer;
+  margin-top: 6px;
+}
+
 </style>
 </head>
 
@@ -367,7 +395,21 @@ input:checked + .slider:before {
 </div>
 		<section class="card" id="notificaciones">
   <h3>Notificaciones</h3>
+  
   <div class="noti-grid">
+  <div class="notificaciones">
+  <h4>Notificaciones automáticas</h4>
+  <label class="switch">
+    <input type="checkbox" id="notifEmail" />
+    <span class="slider"></span> Recibir por Email
+  </label>
+  <label class="switch">
+    <input type="checkbox" id="notifWhats" />
+    <span class="slider"></span> Recibir por WhatsApp
+  </label>
+  <button id="guardarNotif">Guardar notificaciones</button>
+</div>
+
 
 
     <!-- Email -->
@@ -1193,6 +1235,36 @@ async function guardarMP() {
   });
   alert('Credenciales MP guardadas ✔');
 }
+// === Cargar switches de notificaciones ===
+async function cargarNotificaciones() {
+  try {
+    const res = await fetch(`${backendUrl}/leer-contacto/${complejoId}`);
+    const data = await res.json();
+    document.getElementById("notifEmail").checked = !!data.notif_email;
+    document.getElementById("notifWhats").checked = !!data.notif_whats;
+  } catch (e) {
+    console.warn("No se pudieron cargar notificaciones:", e);
+  }
+}
+
+// === Guardar switches de notificaciones ===
+document.getElementById("guardarNotif").addEventListener("click", async () => {
+  const notif_email = document.getElementById("notifEmail").checked;
+  const notif_whats = document.getElementById("notifWhats").checked;
+  try {
+    await fetch(`${backendUrl}/guardar-notificaciones/${complejoId}`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ notif_email, notif_whats })
+    });
+    alert("Preferencias guardadas ✅");
+  } catch (e) {
+    alert("Error al guardar preferencias");
+  }
+});
+
+// Llamar cuando carga la página
+window.addEventListener("load", cargarNotificaciones);
 
 </script>
 </body>
