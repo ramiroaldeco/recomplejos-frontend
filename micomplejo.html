@@ -387,32 +387,34 @@ input:checked + .slider:before {
     </div>
   </div>
   <div class="row" style="margin-top:10px">
-    <button class="btn" onclick="guardarContactoDueno()">Guardar contacto</button>
+   <button class="btn" onclick="guardarContactoDueno()">Guardar contacto</button> 
   </div>
   <p class="muted" style="margin-top:8px">
     Estos datos se usan para enviar las notificaciones si activás los switches de abajo.
   </p>
 </div>
-		<section class="card" id="notificaciones">
+
+<!-- ================= Notificaciones ================= -->
+<section class="card" id="notificaciones">
   <h3>Notificaciones</h3>
   
   <div class="noti-grid">
-  <div class="notificaciones">
-  <h4>Notificaciones automáticas</h4>
-  <label class="switch">
-    <input type="checkbox" id="notifEmail" />
-    <span class="slider"></span> Recibir por Email
-  </label>
-  <label class="switch">
-    <input type="checkbox" id="notifWhats" />
-    <span class="slider"></span> Recibir por WhatsApp
-  </label>
-  <button id="guardarNotif">Guardar notificaciones</button>
-</div>
 
+    <!-- Bloque viejo (oculto) -->
+    <div class="notificaciones" style="display:none">
+      <h4>Notificaciones automáticas</h4>
+      <label class="switch">
+        <input type="checkbox" id="notifEmail" />
+        <span class="slider"></span> Recibir por Email
+      </label>
+      <label class="switch">
+        <input type="checkbox" id="notifWhats" />
+        <span class="slider"></span> Recibir por WhatsApp
+      </label>
+      <button id="guardarNotif">Guardar notificaciones</button>
+    </div>
 
-
-    <!-- Email -->
+    <!-- Bloque Gmail (visible) -->
     <div class="noti-item">
       <div class="noti-left">
         <img src="https://cdn.jsdelivr.net/gh/simple-icons/simple-icons/icons/gmail.svg" alt="Gmail" class="noti-icon">
@@ -426,6 +428,7 @@ input:checked + .slider:before {
         <span class="slider"></span>
       </label>
     </div>
+
   </div>
 
   <div class="noti-preview">
@@ -433,6 +436,7 @@ input:checked + .slider:before {
     <code>✅ Reserva confirmada: {{nombre}} – {{cancha}} – {{fecha}} {{hora}} – Seña ${{monto}}</code>
   </div>
 </section>
+<!-- ================================================ -->
 
       </section>
 
@@ -651,9 +655,9 @@ function ensureSwitchesUI(){ /* no-op */ }
 
 /* ===================== Notificaciones (UI + DB) ===================== */
 async function initNotificaciones(){
-  // Si quedó el bloque viejo en el HTML, lo saco por las dudas
-  const dup = document.getElementById("notificaciones");
-  if (dup) dup.remove();
+  // Si quedó el bloque viejo visible, lo oculto (NO removemos toda la sección)
+  const oldBlock = document.querySelector('#notificaciones .notificaciones');
+  if (oldBlock) oldBlock.style.display = 'none';
 
   // Tomo solo el switch del bloque de Gmail
   const swEmail = document.getElementById("swEmail") || document.getElementById("notifEmail");
@@ -684,6 +688,7 @@ async function initNotificaciones(){
     }
   };
 }
+
 /* ===================== Base & reservas ===================== */
 function cargarControlesTurnos(){ /* compat */ }
 
