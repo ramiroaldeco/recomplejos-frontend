@@ -515,6 +515,12 @@ input:checked + .slider:before {
 
   <!-- ===== JS ===== -->
 <script>
+// === Detectar ID del complejo actual ===
+let complejoId =
+  localStorage.getItem("miComplejoId") ||
+  new URLSearchParams(window.location.search).get("id") ||
+  ""; // fallback
+
   /* (ESTADO GLOBAL & HELPERS) */
   const backendUrl = "https://recomplejos-backend.onrender.com";
   const diasSemana = ["Domingo","Lunes","Martes","Miércoles","Jueves","Viernes","Sábado"];
