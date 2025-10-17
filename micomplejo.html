@@ -667,15 +667,17 @@ function ensureSwitchesUI(){
     </div>`;
   cardContacto.appendChild(box);
 }
-
+/* ===================== Notificaciones (UI + DB) ===================== */
 async function initNotificaciones(){
-  ensureSwitchesUI();
-  const swEmail = document.getElementById("swEmail");
-  const swWhats = document.getElementById("swWhats");
+  // Acepta ambos juegos de IDs: swEmail/swWhats o notifEmail/notifWhats
+  const swEmail = document.getElementById("swEmail")  || document.getElementById("notifEmail");
+  const swWhats = document.getElementById("swWhats")  || document.getElementById("notifWhats");
   const btnGuardar = document.getElementById("guardarNotif");
-  if(!swEmail || !swWhats || !btnGuardar || !complejoActivo) return;
 
-  // CARGA desde DB
+  // Si no existen los elementos o no hay complejo logueado, salgo
+  if (!complejoActivo || !swEmail || !swWhats) return;
+
+  // 1) Cargar estado desde la base
   try{
     const r = await fetch(`${backendUrl}/complejos/${complejoActivo}/contacto`, { cache:"no-store" });
     const j = await r.json();
@@ -686,25 +688,28 @@ async function initNotificaciones(){
     console.warn("No se pudieron cargar notificaciones:", e);
   }
 
-  // GUARDADO en DB
-  async function persistir(){
+  // 2) Guardar en la base (se dispara al clickear el botón o cambiar un switch)
+  const persistir = async () => {
     try{
       await fetch(`${backendUrl}/complejos/${complejoActivo}/contacto`,{
         method:"POST",
         headers:{ "Content-Type":"application/json" },
-        body: JSON.stringify({ notif_email: swEmail.checked, notif_whats: swWhats.checked })
+        body: JSON.stringify({
+          notif_email: swEmail.checked,
+          notif_whats: swWhats.checked
+        })
       });
       alert("Preferencias guardadas ✅");
     }catch(e){
       console.error("No se pudo guardar las notificaciones:", e);
       alert("Error al guardar preferencias");
     }
-  }
+  };
+
+  if (btnGuardar) btnGuardar.onclick = persistir;
   swEmail.onchange = persistir;
   swWhats.onchange = persistir;
-  btnGuardar.onclick = persistir;
 }
-
 /* ===================== Base & reservas ===================== */
 function cargarControlesTurnos(){ /* compat */ }
 
@@ -837,8 +842,8 @@ async function guardarContactoDueno() {
   const payload = {
     owner_phone: document.getElementById("ownerWhats").value.trim(),
     owner_email: document.getElementById("ownerEmail").value.trim(),
-    notif_whats: document.getElementById("swWhats")?.checked || false,
-    notif_email: document.getElementById("swEmail")?.checked || false
+    notif_whats: (document.getElementById("swWhats")  || document.getElementById("notifWhats"))?.checked || false,
+    notif_email: (document.getElementById("swEmail")  || document.getElementById("notifEmail"))?.checked || false
   };
   try {
     const r = await fetch(`${backendUrl}/complejos/${complejoActivo}/contacto`, {
@@ -847,7 +852,8 @@ async function guardarContactoDueno() {
       body: JSON.stringify(payload)
     });
     const j = await r.json();
-    if (j.ok) alert("Contacto guardado en base de datos ✔"); else throw new Error("Respuesta inválida");
+    if (j.ok) alert("Contacto guardado en base de datos ✔");
+    else throw new Error("Respuesta inválida");
   } catch (e) {
     console.error("Error guardando contacto:", e);
     alert("No se pudo guardar el contacto en la base.");
