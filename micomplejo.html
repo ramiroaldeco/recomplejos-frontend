@@ -817,35 +817,34 @@ async function guardarHorarios(){
 }
 
 /* ===================== Contacto del dueño ===================== */
-async function guardarContactoDueno() {
-  const payload = {
-    owner_phone: document.getElementById("ownerWhats").value.trim(),
-    owner_email: document.getElementById("ownerEmail").value.trim(),
-    notif_whats: (document.getElementById("swWhats")  || document.getElementById("notifWhats"))?.checked || false,
-    notif_email: (document.getElementById("swEmail")  || document.getElementById("notifEmail"))?.checked || false
-  };
-  try {
-    const r = await fetch(`${backendUrl}/complejos/${complejoActivo}/contacto`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(payload)
-    });
-    const j = await r.json();
-    if (j.ok) alert("Contacto guardado en base de datos ✔");
-    else throw new Error("Respuesta inválida");
-  } catch (e) {
-    console.error("Error guardando contacto:", e);
-    alert("No se pudo guardar el contacto en la base.");
-  }
-}
-function pintarContactoDueno(){
+/* ===================== Contacto del dueño (cargar desde DB) ===================== */
+async function pintarContactoDueno() {
   const w = document.getElementById("ownerWhats");
   const e = document.getElementById("ownerEmail");
-  if(!w || !e) return;
-  w.value = datos?.whatsappDueño || "";
-  e.value = datos?.emailDueño   || "";
-}
+  if (!w || !e || !complejoActivo) return;
 
+  try {
+    // Trae datos del contacto desde el backend (Neon)
+    const r = await fetch(`${backendUrl}/complejos/${complejoActivo}/contacto`, { cache: "no-store" });
+    const j = await r.json();
+    const d = j.data || j || {};
+
+    // Completa los inputs
+    w.value = d.owner_phone || "";
+    e.value = d.owner_email || "";
+
+    // Actualiza el switch visible (Recibir por Email)
+    const swEmail = document.getElementById("swEmail") || document.getElementById("notifEmail");
+    if (swEmail) swEmail.checked = !!d.notif_email;
+
+  } catch (err) {
+    console.warn("No se pudo leer contacto de la DB:", err);
+
+    // Fallback por si no se puede acceder al backend
+    w.value = datos?.whatsappDueño || "";
+    e.value = datos?.emailDueño   || "";
+  }
+}
 /* ===================== Teléfono helpers ===================== */
 function normalizarTelefono(raw){
   if(!raw) return "";
