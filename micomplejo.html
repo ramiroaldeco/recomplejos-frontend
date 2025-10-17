@@ -537,7 +537,7 @@ const $  = (q)=>document.querySelector(q);
 function activar(id){
   if(!loginOK){ alert("Primero debe iniciar sesión."); return; }
   document.querySelectorAll('.tab').forEach(t=>t.classList.toggle('active', t.dataset.tab===id));
-  document.querySelectorAll('#app section').forEach(s=> s.style.display='none');
+  document.querySelectorAll('#app > section').forEach(s => s.style.display = 'none');
   document.getElementById(id).style.display = 'block';
   if(id === 'analiticas') renderAnaliticas();
 }
