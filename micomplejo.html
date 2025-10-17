@@ -515,66 +515,68 @@ input:checked + .slider:before {
 
   <!-- ===== JS ===== -->
 <script>
-// === Detectar ID del complejo actual ===
+/* ===================== ID de complejo (pre-login) ===================== */
 let complejoId =
   localStorage.getItem("miComplejoId") ||
   new URLSearchParams(window.location.search).get("id") ||
   ""; // fallback
 
-  /* (ESTADO GLOBAL & HELPERS) */
-  const backendUrl = "https://recomplejos-backend.onrender.com";
-  const diasSemana = ["Domingo","Lunes","Martes","Miércoles","Jueves","Viernes","Sábado"];
+/* ===================== Estado global & helpers ===================== */
+const backendUrl = "https://recomplejos-backend.onrender.com";
+const diasSemana = ["Domingo","Lunes","Martes","Miércoles","Jueves","Viernes","Sábado"];
 
-  let loginOK = false;
-  let complejoActivo = "";
-  let datosComplejos = {};
-  let datos = {};
-  let reservas = {};
+let loginOK = false;
+let complejoActivo = "";              // ← se fija al hacer login
+let datosComplejos = {};
+let datos = {};
+let reservas = {};
 
-  const $  = (q)=>document.querySelector(q);
+const $  = (q)=>document.querySelector(q);
 
-  /* (TABS) activar secciones */
-  function activar(id){
-    if(!loginOK){ alert("Primero debe iniciar sesión."); return; }
-    document.querySelectorAll('.tab').forEach(t=>t.classList.toggle('active', t.dataset.tab===id));
-    document.querySelectorAll('#app section').forEach(s=> s.style.display='none');
-    document.getElementById(id).style.display = 'block';
-    if(id === 'analiticas') renderAnaliticas();  /* ← recalcula al abrir */
+/* (TABS) */
+function activar(id){
+  if(!loginOK){ alert("Primero debe iniciar sesión."); return; }
+  document.querySelectorAll('.tab').forEach(t=>t.classList.toggle('active', t.dataset.tab===id));
+  document.querySelectorAll('#app section').forEach(s=> s.style.display='none');
+  document.getElementById(id).style.display = 'block';
+  if(id === 'analiticas') renderAnaliticas();
+}
+
+/* Loader */
+function showLoader(msg="Cargando…"){ const o=$("#loadingOverlay"), m=$("#loadingMsg"); if(m) m.textContent=msg; if(o) o.classList.add("show"); }
+function hideLoader(){ const o=$("#loadingOverlay"); if(o) o.classList.remove("show"); }
+
+/* Fechas/clave/moneda */
+function toISODate(d){ const y=d.getFullYear(), m=String(d.getMonth()+1).padStart(2,"0"), dd=String(d.getDate()).padStart(2,"0"); return `${y}-${m}-${dd}`; }
+function fromISO(s){ const [y,m,d] = (s||"").split("-").map(Number); return new Date(y||0,(m||1)-1,d||1,0,0,0,0); }
+function nombreDiaISO(s){ return diasSemana[fromISO(s).getDay()] || "Lunes"; }
+function entre(h, d, hst){ return (d<=hst) ? (h>=d && h<=hst) : (h>=d || h<=hst); }
+function horaPasada(fechaISO, hora){ const [H,M] = hora.split(":").map(Number); const t = fromISO(fechaISO); t.setHours(H,M,0,0); return t < new Date(); }
+function formatoARS(n){ return new Intl.NumberFormat('es-AR',{style:'currency',currency:'ARS',maximumFractionDigits:0}).format(Number(n||0)); }
+function claveNueva(cancha, fechaISO, hora){ return `${complejoActivo}-${cancha}-${fechaISO}-${hora}`; }
+function claveVieja(cancha, nomDia, hora){ return `${complejoActivo}-${cancha}-${nomDia}-${hora}`; }
+
+/* ===================== Inicio ===================== */
+document.addEventListener("DOMContentLoaded", async ()=>{
+  await poblarComplejos();
+  const hoy = toISODate(new Date());
+  $("#fechaDia").value = hoy;
+  $("#cajaDesde").value = hoy;
+  $("#cajaHasta").value = hoy;
+  document.getElementById("fechaDia").addEventListener("change", renderDia);
+});
+
+async function poblarComplejos(){
+  try{
+    const resp = await fetch(`${backendUrl}/datos_complejos`, { cache:"no-store" }).then(r=>r.json());
+    const data = resp.data || resp; // compat si el backend devuelve wrapper
+    datosComplejos = data || {};
+  }catch(e){
+    console.error("Error cargando datos_complejos:", e);
+    datosComplejos = {};
   }
-
-  /* (LOADER UI) */
-  function showLoader(msg="Cargando…"){ const o=document.getElementById("loadingOverlay"); const m=document.getElementById("loadingMsg"); if(m) m.textContent=msg; if(o) o.classList.add("show"); }
-  function hideLoader(){ const o=document.getElementById("loadingOverlay"); if(o) o.classList.remove("show"); }
-
-  /* (UTILIDADES FECHAS/CLAVES/MONEDA) */
-  function toISODate(d){ const y=d.getFullYear(); const m=String(d.getMonth()+1).padStart(2,"0"); const dd=String(d.getDate()).padStart(2,"0"); return `${y}-${m}-${dd}`; }
-  function fromISO(s){ const [y,m,d] = s.split("-").map(Number); return new Date(y,m-1,d,0,0,0,0); }
-  function nombreDiaISO(s){ return diasSemana[fromISO(s).getDay()]; }
-  function entre(h, d, hst){ return (d<=hst) ? (h>=d && h<=hst) : (h>=d || h<=hst); }
-  function horaPasada(fechaISO, hora){ const [H,M] = hora.split(":").map(Number); const now = new Date(); const t = fromISO(fechaISO); t.setHours(H,M,0,0); return t < now; }
-  function formatoARS(n){ return new Intl.NumberFormat('es-AR',{style:'currency',currency:'ARS',maximumFractionDigits:0}).format(Number(n||0)); }
-  function claveNueva(cancha, fechaISO, hora){ return `${complejoActivo}-${cancha}-${fechaISO}-${hora}`; }
-  function claveVieja(cancha, nomDia, hora){ return `${complejoActivo}-${cancha}-${nomDia}-${hora}`; }
-
-  /* (INICIO) */
-  document.addEventListener("DOMContentLoaded", async ()=>{
-    await poblarComplejos();
-    const hoy = toISODate(new Date());
-    $("#fechaDia").value = hoy;
-    $("#cajaDesde").value = hoy;
-    $("#cajaHasta").value = hoy;
-    document.getElementById("fechaDia").addEventListener("change", renderDia);
-  });
-
-  async function poblarComplejos(){
-    try{
-      const data = await fetch(`${backendUrl}/datos_complejos`).then(r=>r.json());
-      datosComplejos = data || {};
-    }catch(e){
-      console.error("Error cargando datos_complejos:", e);
-      datosComplejos = {};
-    }
-    const sel = $("#complejo");
+  const sel = $("#complejo");
+  if (sel) {
     sel.innerHTML = '<option value="">— Seleccione su complejo —</option>';
     Object.keys(datosComplejos).forEach(k=>{
       const opt = document.createElement("option");
@@ -585,101 +587,130 @@ let complejoId =
     const qs = new URL(location.href).searchParams.get("complejo");
     if(qs && sel.querySelector(`[value="${qs}"]`)) sel.value = qs;
   }
+}
 
-  /* (LOGIN) estricto: gatea toda la app */
-  async function entrarAdmin(){
-    const complejo = $("#complejo").value.trim();
-    const clave    = $("#clave").value.trim();
-    if(!complejo || !clave){ alert("Complete complejo y contraseña."); return; }
+/* ===================== LOGIN estricto ===================== */
+async function entrarAdmin(){
+  const sel = $("#complejo");
+  const complejo = (sel ? sel.value : "").trim();
+  const clave    = ($("#clave")?.value || "").trim();
+  if(!complejo || !clave){ alert("Complete complejo y contraseña."); return; }
 
-    showLoader("Verificando credenciales…");
-    try{
-      const r = await fetch(`${backendUrl}/login`,{
-        method:"POST", headers:{ "Content-Type":"application/json" },
-        body: JSON.stringify({ complejo, password: clave })
-      });
-      const j = await r.json();
-      if(!r.ok || !j.ok) throw new Error("login");
+  showLoader("Verificando credenciales…");
+  try{
+    const r = await fetch(`${backendUrl}/login`,{
+      method:"POST", headers:{ "Content-Type":"application/json" },
+      body: JSON.stringify({ complejo, password: clave })
+    });
+    const j = await r.json();
+    if(!r.ok || !j.ok) throw new Error("login");
 
-loginOK = true;
-complejoActivo = complejo;
-datos = datosComplejos[complejoActivo] || {};
+    loginOK = true;
+    complejoActivo = complejo;
+    localStorage.setItem("miComplejoId", complejoActivo); // persisto para otras pantallas
+    datos = datosComplejos[complejoActivo] || {};
 
-// mostrar app (una sola vez)
-document.getElementById("loginPanel").style.display = "none";
-document.getElementById("app").style.display = "block";
+    // mostrar app
+    $("#loginPanel").style.display = "none";
+    $("#app").style.display = "block";
 
-// switches de notificaciones
-initNotificaciones();
+    // cargar base + reservas y render
+    await cargarBase();
+    await cargarReservas();
+    cargarControlesTurnos();
+    renderDia();
 
-// cargar base + reservas y renderizar
-await cargarBase();
-await cargarReservas();
-cargarControlesTurnos();   // compat
-renderDia();
+    // switches (ahora que el DOM ya está)
+    initNotificaciones();
 
-
-
-      /* (ANALÍTICAS) defaults + listeners */
-      const anaDesde = document.getElementById("anaDesde");
-      const anaHasta = document.getElementById("anaHasta");
-      const anaCancha = document.getElementById("anaCancha");
-      if(anaDesde && anaHasta && anaCancha){
-        const hoy = new Date();
-        const first = new Date(hoy.getFullYear(), hoy.getMonth(), 1);
-        anaDesde.value = toISODate(first);
-        anaHasta.value = toISODate(hoy);
-
-        anaCancha.innerHTML = '<option value="__ALL__">Todas</option>';
-        (datos.canchas||[]).forEach(c=> anaCancha.appendChild(new Option(c.nombre,c.nombre)));
-
-        anaDesde.addEventListener("change", renderAnaliticas);
-        anaHasta.addEventListener("change", renderAnaliticas);
-        anaCancha.addEventListener("change", renderAnaliticas);
-      }
-    }catch(e){
-      alert("Contraseña incorrecta o complejo inválido.");
-    }finally{
-      hideLoader();
+    /* Analíticas defaults */
+    const anaDesde = $("#anaDesde");
+    const anaHasta = $("#anaHasta");
+    const anaCancha = $("#anaCancha");
+    if(anaDesde && anaHasta && anaCancha){
+      const hoy = new Date();
+      const first = new Date(hoy.getFullYear(), hoy.getMonth(), 1);
+      anaDesde.value = toISODate(first);
+      anaHasta.value = toISODate(hoy);
+      anaCancha.innerHTML = '<option value="__ALL__">Todas</option>';
+      (datos.canchas||[]).forEach(c=> anaCancha.appendChild(new Option(c.nombre,c.nombre)));
+      anaDesde.addEventListener("change", renderAnaliticas);
+      anaHasta.addEventListener("change", renderAnaliticas);
+      anaCancha.addEventListener("change", renderAnaliticas);
     }
+  }catch(e){
+    alert("Contraseña incorrecta o complejo inválido.");
+  }finally{
+    hideLoader();
   }
-function initNotificaciones(){
+}
+
+/* ===================== Notificaciones (UI + DB) ===================== */
+// crea el bloque si no existe
+function ensureSwitchesUI(){
+  if (document.getElementById("swEmail")) return;
+  const cardContacto = document.querySelector(".card") || document.getElementById("contactoDueno");
+  if (!cardContacto) return;
+  const box = document.createElement("div");
+  box.innerHTML = `
+    <div id="notificaciones" style="margin-top:12px;padding:12px 16px;border-radius:10px;background:rgba(255,255,255,.05)">
+      <h4 style="margin:0 0 8px">Notificaciones automáticas</h4>
+      <label style="display:flex;align-items:center;gap:8px;margin:6px 0">
+        <input type="checkbox" id="swEmail"> Recibir por Email
+      </label>
+      <label style="display:flex;align-items:center;gap:8px;margin:6px 0">
+        <input type="checkbox" id="swWhats"> Recibir por WhatsApp
+      </label>
+      <button id="guardarNotif" style="margin-top:6px;padding:6px 12px;border:none;border-radius:6px;background:#1db954;color:#fff;cursor:pointer">
+        Guardar notificaciones
+      </button>
+    </div>`;
+  cardContacto.appendChild(box);
+}
+
+async function initNotificaciones(){
+  ensureSwitchesUI();
   const swEmail = document.getElementById("swEmail");
-  if(!swEmail) return;
+  const swWhats = document.getElementById("swWhats");
+  const btnGuardar = document.getElementById("guardarNotif");
+  if(!swEmail || !swWhats || !btnGuardar || !complejoActivo) return;
 
-  const n = (datos && datos.notif) || {};
-  const eInit = (typeof n.email === "boolean") ? n.email : (localStorage.getItem("notifEmail") === "1");
-  swEmail.checked = !!eInit;
+  // CARGA desde DB
+  try{
+    const r = await fetch(`${backendUrl}/complejos/${complejoActivo}/contacto`, { cache:"no-store" });
+    const j = await r.json();
+    const d = j.data || j;
+    swEmail.checked = !!d?.notif_email;
+    swWhats.checked = !!d?.notif_whats;
+  }catch(e){
+    console.warn("No se pudieron cargar notificaciones:", e);
+  }
 
+  // GUARDADO en DB
   async function persistir(){
-    localStorage.setItem("notifEmail", swEmail.checked ? "1" : "0");
     try{
-      // si ya migraste a DB, mejor pegale a /complejos/:id/contacto
       await fetch(`${backendUrl}/complejos/${complejoActivo}/contacto`,{
         method:"POST",
         headers:{ "Content-Type":"application/json" },
-        body: JSON.stringify({ notif_email: swEmail.checked })
+        body: JSON.stringify({ notif_email: swEmail.checked, notif_whats: swWhats.checked })
       });
-      // compat JSON (si seguís usando /guardarDatos para otras cosas)
-      const all = await fetch(`${backendUrl}/datos_complejos`).then(r=>r.json());
-      all[complejoActivo] = { ...(all[complejoActivo]||{}), ...(datos||{}), notif: { email: swEmail.checked } };
-      await fetch(`${backendUrl}/guardarDatos`,{ method:"POST", headers:{ "Content-Type":"application/json" }, body: JSON.stringify(all) });
-      datos.notif = { ...(datos.notif||{}), email: swEmail.checked };
+      alert("Preferencias guardadas ✅");
     }catch(e){
-      console.error("No se pudo guardar la preferencia de notificación:", e);
+      console.error("No se pudo guardar las notificaciones:", e);
+      alert("Error al guardar preferencias");
     }
   }
-
   swEmail.onchange = persistir;
+  swWhats.onchange = persistir;
+  btnGuardar.onclick = persistir;
 }
 
+/* ===================== Base & reservas ===================== */
+function cargarControlesTurnos(){ /* compat */ }
 
-  function cargarControlesTurnos(){ /* intencionalmente vacío (compat) */ }
-
-  /* (BASE Y RESERVAS) */
-  async function cargarBase(){
-    // horarios
-    const tbody = $("#tablaHorarios"); tbody.innerHTML = "";
+async function cargarBase(){
+  // horarios
+  const tbody = $("#tablaHorarios"); if (tbody) { tbody.innerHTML = "";
     const orden = ["Lunes","Martes","Miércoles","Jueves","Viernes","Sábado","Domingo"];
     for(const dia of orden){
       const tr = document.createElement("tr");
@@ -697,108 +728,112 @@ function initNotificaciones(){
       s1.value = datos?.horarios?.[dia]?.desde || "18:00";
       s2.value = datos?.horarios?.[dia]?.hasta || "23:00";
     }
-    // canchas
-    pintarCanchas(datos.canchas || []);
-    // selector cancha
-    const sel = $("#selCancha");
+  }
+  // canchas
+  pintarCanchas(datos.canchas || []);
+  // selector cancha
+  const sel = $("#selCancha");
+  if (sel) {
     sel.innerHTML = "";
     (datos.canchas||[]).forEach(c=> sel.appendChild(new Option(c.nombre, c.nombre)));
     sel.addEventListener("change", renderDia);
-    actualizarChipsPrecio();
-pintarContactoDueno();   // completa ownerWhats / ownerEmail con lo guardado 
- }
+  }
+  actualizarChipsPrecio();
+  pintarContactoDueno();   // completa ownerWhats / ownerEmail con lo guardado
+}
 
+async function cargarReservas(){
+  try{
+    const r = await fetch(`${backendUrl}/reservas`, { cache:"no-store" });
+    reservas = await r.json();
+  }catch{
+    reservas = {};
+  }
+  return reservas;
+}
 
-  async function cargarReservas(){
-    reservas = await fetch(`${backendUrl}/reservas`).then(r=>r.json()).catch(()=> ({}));
-    return reservas;
-  }
+/* ===================== Config → Canchas ===================== */
+function pintarCanchas(arr){
+  const cont = $("#listaCanchas"); if(!cont) return; cont.innerHTML = "";
+  if(!arr.length){ cont.innerHTML = `<div class="muted">No hay canchas cargadas.</div>`; return; }
+  arr.forEach((c,idx)=>{
+    const div = document.createElement("div");
+    div.className="grid g3";
+    div.style.margin="8px 0";
+    div.innerHTML = `
+      <div>
+        <label class="chip">Nombre</label>
+        <input id="cancha_${idx}" value="${c.nombre||""}" placeholder="Ej.: Fútbol 5">
+      </div>
+      <div>
+        <label class="chip">Jugadores totales</label>
+        <input id="cancha_${idx}_jug" value="${c.jugadores|| (c.nombre?.includes('7')?14: (c.nombre?.includes('5')?10:""))}" inputmode="numeric" placeholder="Ej.: 10 / 14">
+      </div>
+      <div>
+        <label class="chip">Precio por persona (ARS)</label>
+        <input id="cancha_${idx}_pp" value="${c.precioPP||""}" inputmode="numeric" placeholder="Ej.: 1200">
+      </div>
+      <div>
+        <label class="chip">Seña (ARS)</label>
+        <input id="cancha_${idx}_senia" value="${c.senia||""}" inputmode="numeric" placeholder="Ej.: 3000">
+      </div>
+      <div style="display:flex;align-items:flex-end;gap:8px">
+        <button class="btn-ghost" onclick="quitarCancha(${idx})">Quitar</button>
+      </div>`;
+    cont.appendChild(div);
+  });
+}
+function agregarCancha(){
+  datos.canchas = datos.canchas || [];
+  datos.canchas.push({ nombre:"", jugadores:"", precioPP:"", senia:"" });
+  pintarCanchas(datos.canchas);
+}
+function quitarCancha(i){
+  (datos.canchas||[]).splice(i,1);
+  pintarCanchas(datos.canchas||[]);
+  guardarCanchas(true);
+}
+async function guardarCanchas(silent=false){
+  const arr = (datos.canchas||[]).map((c,idx)=>({
+    nombre:   document.getElementById(`cancha_${idx}`).value.trim(),
+    jugadores:Number(document.getElementById(`cancha_${idx}_jug`).value||0),
+    precioPP: Number(document.getElementById(`cancha_${idx}_pp`).value||0),
+    senia:    Number(document.getElementById(`cancha_${idx}_senia`).value||0),
+  }));
+  datos.canchas = arr;
+  const all = await fetch(`${backendUrl}/datos_complejos`).then(r=>r.json());
+  all[complejoActivo] = { ...(all[complejoActivo]||{}), ...datos, canchas: arr };
+  await fetch(`${backendUrl}/guardarDatos`, { method:"POST", headers:{ "Content-Type":"application/json" }, body: JSON.stringify(all) });
+  if(!silent) alert("Canchas guardadas.");
+  const sel = $("#selCancha"); if (sel) { sel.innerHTML = ""; arr.forEach(c=> sel.appendChild(new Option(c.nombre,c.nombre))); }
+  actualizarChipsPrecio();
 
-  /* (CONFIG → CANCHAS) */
-  function pintarCanchas(arr){
-    const cont = $("#listaCanchas"); cont.innerHTML = "";
-    if(!arr.length){
-      cont.innerHTML = `<div class="muted">No hay canchas cargadas.</div>`;
-      return;
-    }
-    arr.forEach((c,idx)=>{
-      const div = document.createElement("div");
-      div.className="grid g3";
-      div.style.margin="8px 0";
-      div.innerHTML = `
-        <div>
-          <label class="chip">Nombre</label>
-          <input id="cancha_${idx}" value="${c.nombre||""}" placeholder="Ej.: Fútbol 5">
-        </div>
-        <div>
-          <label class="chip">Jugadores totales</label>
-          <input id="cancha_${idx}_jug" value="${c.jugadores|| (c.nombre?.includes('7')?14: (c.nombre?.includes('5')?10:""))}" inputmode="numeric" placeholder="Ej.: 10 / 14">
-        </div>
-        <div>
-          <label class="chip">Precio por persona (ARS)</label>
-          <input id="cancha_${idx}_pp" value="${c.precioPP||""}" inputmode="numeric" placeholder="Ej.: 1200">
-        </div>
-        <div>
-          <label class="chip">Seña (ARS)</label>
-          <input id="cancha_${idx}_senia" value="${c.senia||""}" inputmode="numeric" placeholder="Ej.: 3000">
-        </div>
-        <div style="display:flex;align-items:flex-end;gap:8px">
-          <button class="btn-ghost" onclick="quitarCancha(${idx})">Quitar</button>
-        </div>
-      `;
-      cont.appendChild(div);
-    });
+  const anaSel = document.getElementById("anaCancha");
+  if(anaSel){
+    anaSel.innerHTML = '<option value="__ALL__">Todas</option>';
+    (datos.canchas||[]).forEach(c=> anaSel.appendChild(new Option(c.nombre,c.nombre)));
   }
-  function agregarCancha(){
-    datos.canchas = datos.canchas || [];
-    datos.canchas.push({ nombre:"", jugadores:"", precioPP:"", senia:"" });
-    pintarCanchas(datos.canchas);
-  }
-  function quitarCancha(i){
-    (datos.canchas||[]).splice(i,1);
-    pintarCanchas(datos.canchas||[]);
-    guardarCanchas(true);
-  }
-  async function guardarCanchas(silent=false){
-    const arr = (datos.canchas||[]).map((c,idx)=>({
-      nombre:   document.getElementById(`cancha_${idx}`).value.trim(),
-      jugadores:Number(document.getElementById(`cancha_${idx}_jug`).value||0),
-      precioPP: Number(document.getElementById(`cancha_${idx}_pp`).value||0),
-      senia:    Number(document.getElementById(`cancha_${idx}_senia`).value||0),
-    }));
-    datos.canchas = arr;
-    const all = await fetch(`${backendUrl}/datos_complejos`).then(r=>r.json());
-    all[complejoActivo] = { ...(all[complejoActivo]||{}), ...datos, canchas: arr };
-    await fetch(`${backendUrl}/guardarDatos`, { method:"POST", headers:{ "Content-Type":"application/json" }, body: JSON.stringify(all) });
-    if(!silent) alert("Canchas guardadas.");
-    const sel = $("#selCancha"); sel.innerHTML = ""; arr.forEach(c=> sel.appendChild(new Option(c.nombre,c.nombre)));
-    actualizarChipsPrecio();
+}
 
-    // actualizar lista de canchas en Analíticas
-    const anaSel = document.getElementById("anaCancha");
-    if(anaSel){
-      anaSel.innerHTML = '<option value="__ALL__">Todas</option>';
-      (datos.canchas||[]).forEach(c=> anaSel.appendChild(new Option(c.nombre,c.nombre)));
-    }
+/* ===================== Config → Horarios ===================== */
+function leerHorariosForm(){
+  const out = {};
+  const orden = ["Lunes","Martes","Miércoles","Jueves","Viernes","Sábado","Domingo"];
+  for(const d of orden){
+    out[d] = { desde: document.getElementById(`h_${d}_desde`).value, hasta: document.getElementById(`h_${d}_hasta`).value };
   }
+  return out;
+}
+async function guardarHorarios(){
+  const all = await fetch(`${backendUrl}/datos_complejos`).then(r=>r.json());
+  all[complejoActivo] = all[complejoActivo] || {};
+  all[complejoActivo].horarios = leerHorariosForm();
+  await fetch(`${backendUrl}/guardarDatos`,{ method:"POST", headers:{ "Content-Type":"application/json" }, body: JSON.stringify(all) });
+  alert("Horarios guardados.");
+}
 
-  /* (CONFIG → HORARIOS) */
-  function leerHorariosForm(){
-    const out = {};
-    const orden = ["Lunes","Martes","Miércoles","Jueves","Viernes","Sábado","Domingo"];
-    for(const d of orden){
-      out[d] = { desde: document.getElementById(`h_${d}_desde`).value, hasta: document.getElementById(`h_${d}_hasta`).value };
-    }
-    return out;
-  }
-  async function guardarHorarios(){
-    const all = await fetch(`${backendUrl}/datos_complejos`).then(r=>r.json());
-    all[complejoActivo] = all[complejoActivo] || {};
-    all[complejoActivo].horarios = leerHorariosForm();
-    await fetch(`${backendUrl}/guardarDatos`,{ method:"POST", headers:{ "Content-Type":"application/json" }, body: JSON.stringify(all) });
-    alert("Horarios guardados.");
-  }
- async function guardarContactoDueno() {
+/* ===================== Contacto del dueño ===================== */
+async function guardarContactoDueno() {
   const payload = {
     owner_phone: document.getElementById("ownerWhats").value.trim(),
     owner_email: document.getElementById("ownerEmail").value.trim(),
@@ -812,14 +847,12 @@ pintarContactoDueno();   // completa ownerWhats / ownerEmail con lo guardado
       body: JSON.stringify(payload)
     });
     const j = await r.json();
-    if (j.ok) alert("Contacto guardado en base de datos ✔");
-    else throw new Error("Respuesta inválida");
+    if (j.ok) alert("Contacto guardado en base de datos ✔"); else throw new Error("Respuesta inválida");
   } catch (e) {
     console.error("Error guardando contacto:", e);
     alert("No se pudo guardar el contacto en la base.");
   }
 }
-
 function pintarContactoDueno(){
   const w = document.getElementById("ownerWhats");
   const e = document.getElementById("ownerEmail");
@@ -828,125 +861,115 @@ function pintarContactoDueno(){
   e.value = datos?.emailDueño   || "";
 }
 
+/* ===================== Teléfono helpers ===================== */
+function normalizarTelefono(raw){
+  if(!raw) return "";
+  let d = String(raw).replace(/\D/g,'');
+  if(d.startsWith('00')) d = d.slice(2);
+  if(d.startsWith('0'))  d = d.slice(1);
+  if(d.startsWith('54') && !d.startsWith('549') && d.length>=11){ d = '549' + d.slice(2); }
+  if(!d.startsWith('54') && (d.length===10 || d.length===11)){ d = '549' + d; }
+  return '+' + d;
+}
+function telefonoValido(raw){ const d = String(raw).replace(/\D/g,''); return d.length>=10 && d.length<=15; }
+function mostrarTelefonoCorto(tel){
+  if(!tel) return "s/d";
+  const d = tel.replace(/\D/g,'');
+  if(d.startsWith('549') && d.length>=12){ return `+54 9 ${d.slice(3,6)} ${d.slice(6,9)} ${d.slice(9)}`; }
+  if(tel.startsWith('+')) return tel;
+  return '+'+d;
+}
 
-  /* ===================== (TELÉFONO) NORMALIZACIÓN Y VISUAL ===================== */
-  function normalizarTelefono(raw){
-    if(!raw) return "";
-    let d = String(raw).replace(/\D/g,'');
-    if(d.startsWith('00')) d = d.slice(2);
-    if(d.startsWith('0'))  d = d.slice(1);
-    if(d.startsWith('54') && !d.startsWith('549') && d.length>=11){ d = '549' + d.slice(2); }
-    if(!d.startsWith('54') && (d.length===10 || d.length===11)){ d = '549' + d; }
-    return '+' + d;
+/* ===================== Tablero: datos de cancha y render ===================== */
+function datosCanchaActual(){
+  const cancha = document.getElementById("selCancha").value;
+  const c = (datos.canchas||[]).find(x=> x.nombre===cancha) || {};
+  const jugadores = Number(c.jugadores||0);
+  const pp = Number(c.precioPP||0);
+  const senia = Number(c.senia||0);
+  const total = jugadores*pp;
+  return { cancha, jugadores, pp, senia, total };
+}
+function actualizarChipsPrecio(){
+  const { jugadores, pp, senia, total } = datosCanchaActual();
+  const chipPrecio = document.getElementById("chipPrecio");
+  const chipSenia  = document.getElementById("chipSenia");
+  if(chipPrecio){
+    chipPrecio.textContent = (jugadores && pp)
+      ? `Precio p/p: ${formatoARS(pp)} · Jugadores: ${jugadores} · Total estimado: ${formatoARS(total)}`
+      : "Defina precio por persona y jugadores en Config.";
   }
-  function telefonoValido(raw){
-    const d = String(raw).replace(/\D/g,'');
-    return d.length>=10 && d.length<=15;
+  if(chipSenia){
+    chipSenia.textContent = senia ? `Seña web: ${formatoARS(senia)}` : "Seña web no definida (Config → Canchas).";
   }
-  function mostrarTelefonoCorto(tel){
-    if(!tel) return "s/d";
-    const d = tel.replace(/\D/g,'');
-    if(d.startsWith('549') && d.length>=12){ return `+54 9 ${d.slice(3,6)} ${d.slice(6,9)} ${d.slice(9)}`; }
-    if(tel.startsWith('+')) return tel;
-    return '+'+d;
-  }
-  /* ============================================================================ */
+}
+function rangoDia(fechaISO){
+  const nd = nombreDiaISO(fechaISO);
+  const h  = (datos.horarios||{})[nd] || {};
+  const desde = h.desde || "18:00";
+  const hasta = h.hasta || "23:00";
+  return {desde,hasta};
+}
+function renderDia(){
+  const fechaISO = document.getElementById("fechaDia").value;
+  const cancha   = document.getElementById("selCancha").value;
+  if(!fechaISO || !cancha) return;
+  actualizarChipsPrecio();
 
-  /* (TABLERO) — datos de cancha y render del día */
-  function datosCanchaActual(){
-    const cancha = document.getElementById("selCancha").value;
-    const c = (datos.canchas||[]).find(x=> x.nombre===cancha) || {};
-    const jugadores = Number(c.jugadores||0);
-    const pp = Number(c.precioPP||0);
-    const senia = Number(c.senia||0);
-    const total = jugadores*pp;
-    return { cancha, jugadores, pp, senia, total };
-  }
-  function actualizarChipsPrecio(){
-    const { jugadores, pp, senia, total } = datosCanchaActual();
-    const chipPrecio = document.getElementById("chipPrecio");
-    const chipSenia  = document.getElementById("chipSenia");
-    if(chipPrecio){
-      chipPrecio.textContent = (jugadores && pp)
-        ? `Precio p/p: ${formatoARS(pp)} · Jugadores: ${jugadores} · Total estimado: ${formatoARS(total)}`
-        : "Defina precio por persona y jugadores en Config.";
-    }
-    if(chipSenia){
-      chipSenia.textContent = senia ? `Seña web: ${formatoARS(senia)}` : "Seña web no definida (Config → Canchas).";
-    }
-  }
+  const {desde, hasta} = rangoDia(fechaISO);
+  const cuerpo = document.getElementById("tbodyDia");
+  cuerpo.innerHTML = "";
 
-  function rangoDia(fechaISO){
-    const nd = nombreDiaISO(fechaISO);
-    const h  = (datos.horarios||{})[nd] || {};
-    const desde = h.desde || "18:00";
-    const hasta = h.hasta || "23:00";
-    return {desde,hasta};
-  }
+  let libres=0, reservados=0, bloqueados=0;
+  for(let h=0; h<24; h++){
+    const hora = `${String(h).padStart(2,"0")}:00`;
+    if(!entre(hora, desde, hasta)) continue;
 
-  function renderDia(){
-    const fechaISO = document.getElementById("fechaDia").value;
-    const cancha   = document.getElementById("selCancha").value;
-    if(!fechaISO || !cancha) return;
-    actualizarChipsPrecio();
+    const kNew  = claveNueva(cancha, fechaISO, hora);
+    const kOld  = claveVieja(cancha, nombreDiaISO(fechaISO), hora);
+    const r     = reservas[kNew] || reservas[kOld];
 
-    const {desde, hasta} = rangoDia(fechaISO);
-    const cuerpo = document.getElementById("tbodyDia");
-    cuerpo.innerHTML = "";
+    let clase = "ok", estadoTxt = "Libre";
+    let acciones = `
+      <button class="btn" onclick="reservarManual('${kNew}','${kOld}')">Reservar</button>
+      <button class="btn-warn" onclick="bloquearTurno('${kNew}','${kOld}')">Bloquear</button>`;
+    if(horaPasada(fechaISO, hora)) { clase += " pasado"; }
 
-    let libres=0, reservados=0, bloqueados=0;
-    for(let h=0; h<24; h++){
-      const hora = `${String(h).padStart(2,"0")}:00`;
-      if(!entre(hora, desde, hasta)) continue;
-
-      const kNew  = claveNueva(cancha, fechaISO, hora);
-      const kOld  = claveVieja(cancha, nombreDiaISO(fechaISO), hora);
-      const r     = reservas[kNew] || reservas[kOld];
-
-      let clase = "ok", estadoTxt = "Libre";
-      let acciones = `
-        <button class="btn" onclick="reservarManual('${kNew}','${kOld}')">Reservar</button>
-        <button class="btn-warn" onclick="bloquearTurno('${kNew}','${kOld}')">Bloquear</button>
-      `;
-      if(horaPasada(fechaISO, hora)) { clase += " pasado"; }
-
-      if(r?.bloqueado){
-        clase="bloq"; estadoTxt="Bloqueado"; bloqueados++;
-        acciones = `<button class="btn" onclick="desbloquearTurno('${kNew}','${kOld}')">Eliminar bloqueo</button>`;
-      } else if(r){
-        clase="res";
-        const nombre   = r.nombre   ? r.nombre   : "—";
-        const telefono = r.telefono ? mostrarTelefonoCorto(r.telefono) : "s/d";
-        estadoTxt = `Reservado · ${nombre} · ${telefono}`;
-        reservados++;
-        acciones = `<button class="btn-danger" onclick="cancelarTurno('${kNew}','${kOld}')">Cancelar</button>`;
-      } else {
-        libres++;
-      }
-
-      const tr = document.createElement("tr");
-      tr.innerHTML = `
-        <td style="width:110px">${hora}</td>
-        <td class="${clase}">
-          <div class="slot">
-            <div class="estado">${estadoTxt}</div>
-            <div class="row">${acciones}</div>
-          </div>
-        </td>`;
-      cuerpo.appendChild(tr);
+    if(r?.bloqueado){
+      clase="bloq"; estadoTxt="Bloqueado"; bloqueados++;
+      acciones = `<button class="btn" onclick="desbloquearTurno('${kNew}','${kOld}')">Eliminar bloqueo</button>`;
+    } else if(r){
+      clase="res";
+      const nombre   = r.nombre   ? r.nombre   : "—";
+      const telefono = r.telefono ? mostrarTelefonoCorto(r.telefono) : "s/d";
+      estadoTxt = `Reservado · ${nombre} · ${telefono}`;
+      reservados++;
+      acciones = `<button class="btn-danger" onclick="cancelarTurno('${kNew}','${kOld}')">Cancelar</button>`;
+    } else {
+      libres++;
     }
 
-    document.getElementById("resumenDia").innerHTML = `
-      <div class="box"><div class="chip">Libres</div><div class="num">${libres}</div></div>
-      <div class="box"><div class="chip">Reservados</div><div class="num">${reservados}</div></div>
-      <div class="box"><div class="chip">Bloqueados</div><div class="num">${bloqueados}</div></div>
-    `;
+    const tr = document.createElement("tr");
+    tr.innerHTML = `
+      <td style="width:110px">${hora}</td>
+      <td class="${clase}">
+        <div class="slot">
+          <div class="estado">${estadoTxt}</div>
+          <div class="row">${acciones}</div>
+        </div>
+      </td>`;
+    cuerpo.appendChild(tr);
   }
 
-  /* (TABLERO → ACCIONES DE TURNOS) — teléfono opcional para el dueño */
-  async function reservarManual(kNew,kOld){
-  const nombre = prompt("Nombre del cliente:");
-  if (!nombre) return;
+  document.getElementById("resumenDia").innerHTML = `
+    <div class="box"><div class="chip">Libres</div><div class="num">${libres}</div></div>
+    <div class="box"><div class="chip">Reservados</div><div class="num">${reservados}</div></div>
+    <div class="box"><div class="chip">Bloqueados</div><div class="num">${bloqueados}</div></div>`;
+}
+
+/* ===================== Acciones de turnos ===================== */
+async function reservarManual(kNew,kOld){
+  const nombre = prompt("Nombre del cliente:"); if (!nombre) return;
 
   let telefono = prompt("Teléfono (WhatsApp) — opcional:");
   if (telefono === null) return;
@@ -971,307 +994,206 @@ function pintarContactoDueno(){
     delete reservas[kOld];
   });
 
-  // 👇 AVISO AL BACKEND (adentro de la función)
+  // Aviso al backend para mail "NUEVA RESERVA"
   try{
     await fetch(`${backendUrl}/notificar-manual`,{
       method: "POST",
       headers: {"Content-Type":"application/json"},
-      body: JSON.stringify({
-        clave: kNew,
-        complejoId: complejoActivo,
-        nombre,
-        telefono,
-        monto
-      })
+      body: JSON.stringify({ clave: kNew, complejoId: complejoActivo, nombre, telefono, monto })
     });
   }catch(e){ console.warn("No se pudo notificar la reserva manual:", e); }
 }
 
+function guardarTodo(obj){
+  return fetch(`${backendUrl}/guardarReservas`,{
+    method:"POST", headers:{ "Content-Type":"application/json" }, body: JSON.stringify(obj||{})
+  }).then(r=>r.json());
+}
+async function cargarY(fn){ await cargarReservas(); await fn(); await guardarTodo(reservas); renderDia(); }
 
-  function guardarTodo(obj){
-    return fetch(`${backendUrl}/guardarReservas`,{
-      method:"POST", headers:{ "Content-Type":"application/json" }, body: JSON.stringify(obj||{})
-    }).then(r=>r.json());
-  }
-  async function cargarY(fn){ await cargarReservas(); await fn(); await guardarTodo(reservas); renderDia(); }
+function cancelarTurno(kNew,kOld){
+  if(!confirm("¿Confirma la cancelación de la reserva?")) return;
+  cargarY(()=>{ delete reservas[kNew]; delete reservas[kOld]; });
+}
+function bloquearTurno(kNew,kOld){
+  cargarY(()=>{ reservas[kNew]={bloqueado:true, creado:Date.now()}; delete reservas[kOld]; });
+}
+function desbloquearTurno(kNew,kOld){
+  cargarY(()=>{ delete reservas[kNew]; delete reservas[kOld]; });
+}
 
-  function cancelarTurno(kNew,kOld){
-    if(!confirm("¿Confirma la cancelación de la reserva?")) return;
-    cargarY(()=>{ delete reservas[kNew]; delete reservas[kOld]; });
-  }
-  function bloquearTurno(kNew,kOld){
-    cargarY(()=>{ reservas[kNew]={bloqueado:true, creado:Date.now()}; delete reservas[kOld]; });
-  }
-  function desbloquearTurno(kNew,kOld){
-    cargarY(()=>{ delete reservas[kNew]; delete reservas[kOld]; });
-  }
-  /* ========================= (ANALÍTICAS) ========================= */
-  function iterarDias(desdeISO, hastaISO, cb){
-    const d0 = fromISO(desdeISO);
-    const d1 = fromISO(hastaISO);
-    for(let d=new Date(d0); d<=d1; d.setDate(d.getDate()+1)){
-      cb(new Date(d));
-    }
-  }
-  function horasRangoParaFecha(fechaISO){
-    const nd = nombreDiaISO(fechaISO);
-    const h  = (datos.horarios||{})[nd] || {};
-    const desde = h.desde || "18:00";
-    const hasta = h.hasta || "23:00";
-    const out = [];
-    for(let H=0; H<24; H++){
-      const hh = `${String(H).padStart(2,"0")}:00`;
-      if(entre(hh, desde, hasta)) out.push(hh);
-    }
-    return out;
-  }
-  function contarSlotsRango(desdeISO, hastaISO, canchaNameOrAll="__ALL__"){
-    let total = 0;
-    const canchas = (canchaNameOrAll==="__ALL__") ? (datos.canchas||[]).map(c=>c.nombre) : [canchaNameOrAll];
-    iterarDias(desdeISO, hastaISO, d=>{
-      const f = toISODate(d);
-      const horas = horasRangoParaFecha(f);
-      total += horas.length * canchas.length;
-    });
-    return total;
-  }
-  function canchaInfo(nombre){
-    const c = (datos.canchas||[]).find(x=> x.nombre===nombre) || {};
-    return { jugadores: Number(c.jugadores||0), precioPP: Number(c.precioPP||0), senia: Number(c.senia||0) };
-  }
-  function renderAnaliticas(){
-    if(!loginOK) return;
-    const desde = document.getElementById("anaDesde")?.value;
-    const hasta = document.getElementById("anaHasta")?.value;
-    const selCancha = document.getElementById("anaCancha")?.value || "__ALL__";
-    if(!desde || !hasta) return;
-
-    let reservasCont = 0, bloqueosCont = 0;
-    let seniasCobradas = 0, totalEstimado = 0;
-    const porDiaSemana = {Domingo:0,Lunes:0,Martes:0,Miércoles:0,Jueves:0,Viernes:0,Sábado:0};
-    const porHora = {};
-    const porCancha = {};
-
-    for(const k of Object.keys(reservas||{})){
-      const p = parseClave(k); if(!p || p.complejo!==complejoActivo) continue;
-      if(p.tipo==="nuevo"){
-        if(desde && p.fechaISO < desde) continue;
-        if(hasta && p.fechaISO > hasta) continue;
-      } else { continue; }
-      if(selCancha!=="__ALL__" && p.cancha !== selCancha) continue;
-
-      const r = reservas[k] || {};
-      if(r.bloqueado){ bloqueosCont++; continue; }
-
-      reservasCont++;
-      seniasCobradas += Number(r.monto || r.senia || r.precio || 0) || 0;
-
-      const ci = canchaInfo(p.cancha);
-      totalEstimado += (ci.jugadores||0) * (ci.precioPP||0);
-
-      try{
-        const dname = diasSemana[fromISO(p.fechaISO).getDay()];
-        porDiaSemana[dname] = (porDiaSemana[dname]||0) + 1;
-      }catch(_){}
-      porHora[p.hora] = (porHora[p.hora]||0) + 1;
-      porCancha[p.cancha] = (porCancha[p.cancha]||0) + 1;
-    }
-
-    const slots = contarSlotsRango(desde, hasta, selCancha);
-    const ocupacion = slots ? Math.round((reservasCont/slots)*100) : 0;
-
-    document.getElementById("anaKPIs").innerHTML = `
-      <div class="box"><div class="chip">Reservas</div><div class="num">${reservasCont}</div></div>
-      <div class="box"><div class="chip">Señas cobradas</div><div class="num">${formatoARS(seniasCobradas)}</div></div>
-      <div class="box"><div class="chip">Total estimado</div><div class="num">${formatoARS(totalEstimado)}</div></div>
-      <div class="box"><div class="chip">Bloqueos</div><div class="num">${bloqueosCont}</div></div>
-    `;
-
-    const bar = document.getElementById("anaOcupacionBar");
-    const txt = document.getElementById("anaOcupacionTxt");
-    if(bar) bar.style.width = ocupacion + "%";
-    if(txt) txt.textContent = `${ocupacion}% de ocupación (${reservasCont}/${slots||0} turnos)`;
-
-    const orden = ["Lunes","Martes","Miércoles","Jueves","Viernes","Sábado","Domingo"];
-    const tSem = document.getElementById("anaTablaSemanal");
-    tSem.innerHTML = "";
-    orden.forEach(d=>{
-      const tr = document.createElement("tr");
-      tr.innerHTML = `<td>${d}</td><td>${porDiaSemana[d]||0}</td>`;
-      tSem.appendChild(tr);
-    });
-
-    const tHoras = document.getElementById("anaTopHoras");
-    tHoras.innerHTML = "";
-    Object.entries(porHora).sort((a,b)=> b[1]-a[1]).slice(0,8).forEach(([hora,cant])=>{
-      const tr = document.createElement("tr");
-      tr.innerHTML = `<td>${hora}</td><td>${cant}</td>`;
-      tHoras.appendChild(tr);
-    });
-
-    const tCancha = document.getElementById("anaPorCancha");
-    tCancha.innerHTML = "";
-    const canchasList = (selCancha==="__ALL__") ? (datos.canchas||[]).map(c=>c.nombre) : [selCancha];
-    canchasList.forEach(cn=>{
-      const resC = porCancha[cn]||0;
-      const sC = contarSlotsRango(desde, hasta, cn);
-      const occC = sC ? Math.round((resC/sC)*100) : 0;
-      const tr = document.createElement("tr");
-      tr.innerHTML = `
-        <td>${cn}</td>
-        <td>${resC}</td>
-        <td>
-          <div class="row" style="gap:10px;align-items:center">
-            <div style="min-width:52px">${occC}%</div>
-            <div class="ibar" style="width:180px"><i style="width:${occC}%"></i></div>
-          </div>
-        </td>`;
-      tCancha.appendChild(tr);
-    });
-  }
-  /* =============================================================== */
-
-  /* (CAJA → EXCEL) */
-  function parseClave(k){
-    let m = k.match(/^(.+?)-(.+?)-(\d{4}-\d{2}-\d{2})-(\d{2}:\d{2})$/);
-    if(m) return { complejo:m[1], cancha:m[2], fechaISO:m[3], hora:m[4], tipo:"nuevo" };
-    m = k.match(/^(.+?)-(.+?)-([A-Za-zÁÉÍÓÚáéíóúÑñ]+)-(\d{2}:\d{2})$/);
-    if(m) return { complejo:m[1], cancha:m[2], diaNombre:m[3], hora:m[4], tipo:"viejo" };
-    return null;
-  }
-  function canchaInfo(nombre){
-    const c = (datos.canchas||[]).find(x=> x.nombre===nombre) || {};
-    return { jugadores: Number(c.jugadores||0), precioPP: Number(c.precioPP||0), senia: Number(c.senia||0) };
-  }
-
-  async function exportarExcel(){
-    if(!loginOK){ alert("Inicie sesión para exportar."); return; }
-    await cargarReservas();
-    const desde = document.getElementById("cajaDesde").value;
-    const hasta = document.getElementById("cajaHasta").value;
-
-    const rows = [];
-    for(const k of Object.keys(reservas)){
-      const p = parseClave(k); if(!p || p.complejo!==complejoActivo) continue;
-
-      if(p.tipo==="nuevo"){
-        if(desde && p.fechaISO < desde) continue;
-        if(hasta && p.fechaISO > hasta) continue;
-      } else {
-        if(desde || hasta) continue;
-      }
-
-      const r = reservas[k] || {};
-      const { jugadores, precioPP } = canchaInfo(p.cancha);
-      const totalEstimado = jugadores * precioPP;
-
-      const estado =
-        r.bloqueado ? "Bloqueado" :
-        r.status==="approved" ? "Pagado" :
-        r.status==="manual" ? "Reservado (manual)" :
-        "Reservado";
-
-      rows.push({
-        "Fecha": (p.fechaISO || p.diaNombre || ""),
-        "Cancha": p.cancha,
-        "Hora": p.hora,
-        "Estado": estado,
-        "Cliente": r.nombre || "",
-        "Teléfono": r.telefono || "",
-        "Precio p/p": precioPP || "",
-        "Jugadores": jugadores || "",
-        "Total estimado": totalEstimado || "",
-        "Seña cobrada": r.monto || r.senia || r.precio || ""
-      });
-    }
-
-    if(!rows.length){ alert("No hay movimientos en el período seleccionado."); return; }
-
-    const ws = XLSX.utils.json_to_sheet(rows, { origin: "A2" });
-    XLSX.utils.sheet_add_aoa(ws, [["Caja – " + (datos.nombre||complejoActivo)]], {origin:"A1"});
-    ws["!merges"] = [{ s:{r:0,c:0}, e:{r:0,c:9} }];
-
-    ws["!cols"] = [
-      {wch:12}, {wch:18}, {wch:8}, {wch:18}, {wch:22}, {wch:14}, {wch:12}, {wch:10}, {wch:14}, {wch:14}
-    ];
-
-    const wb = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(wb, ws, "Caja");
-    const nombreArchivo = `caja_${complejoActivo}_${(desde||"todo")}_${(hasta||"")}.xlsx`;
-    XLSX.writeFile(wb, nombreArchivo);
-  }
-  async function guardarContacto() {
-  const complexId = state.complexId; // como lo obtengas hoy
-  const payload = {
-    owner_phone: document.querySelector('#inputTel').value.trim(),
-    owner_email: document.querySelector('#inputEmail').value.trim(),
-    notif_whats: document.querySelector('#chkNotifWhats').checked,
-    notif_email: document.querySelector('#chkNotifEmail').checked
-  };
-  await fetch(`${API_BASE}/complejos/${complexId}/contacto`, {
-    method: 'POST',
-    headers: { 'Content-Type':'application/json' },
-    body: JSON.stringify(payload)
+/* ===================== Analíticas ===================== */
+function iterarDias(desdeISO, hastaISO, cb){
+  const d0 = fromISO(desdeISO), d1 = fromISO(hastaISO);
+  for(let d=new Date(d0); d<=d1; d.setDate(d.getDate()+1)) cb(new Date(d));
+}
+function horasRangoParaFecha(fechaISO){
+  const nd = nombreDiaISO(fechaISO);
+  const h  = (datos.horarios||{})[nd] || {};
+  const desde = h.desde || "18:00", hasta = h.hasta || "23:00";
+  const out = [];
+  for(let H=0; H<24; H++){ const hh = `${String(H).padStart(2,"0")}:00`; if(entre(hh, desde, hasta)) out.push(hh); }
+  return out;
+}
+function contarSlotsRango(desdeISO, hastaISO, canchaNameOrAll="__ALL__"){
+  let total = 0;
+  const canchas = (canchaNameOrAll==="__ALL__") ? (datos.canchas||[]).map(c=>c.nombre) : [canchaNameOrAll];
+  iterarDias(desdeISO, hastaISO, d=>{
+    const f = toISODate(d), horas = horasRangoParaFecha(f);
+    total += horas.length * canchas.length;
   });
-  alert('Contacto guardado ✔');
+  return total;
 }
-async function cargarContacto() {
-  const complexId = state.complexId;
-  const r = await fetch(`${API_BASE}/complejos/${complexId}/contacto`);
-  const { ok, data } = await r.json();
-  if (ok && data) {
-    document.querySelector('#inputTel').value = data.owner_phone || '';
-    document.querySelector('#inputEmail').value = data.owner_email || '';
-    document.querySelector('#chkNotifWhats').checked = !!data.notif_whats;
-    document.querySelector('#chkNotifEmail').checked = !!data.notif_email;
+function canchaInfo(nombre){
+  const c = (datos.canchas||[]).find(x=> x.nombre===nombre) || {};
+  return { jugadores: Number(c.jugadores||0), precioPP: Number(c.precioPP||0), senia: Number(c.senia||0) };
+}
+function renderAnaliticas(){
+  if(!loginOK) return;
+  const desde = document.getElementById("anaDesde")?.value;
+  const hasta = document.getElementById("anaHasta")?.value;
+  const selCancha = document.getElementById("anaCancha")?.value || "__ALL__";
+  if(!desde || !hasta) return;
+
+  let reservasCont = 0, bloqueosCont = 0;
+  let seniasCobradas = 0, totalEstimado = 0;
+  const porDiaSemana = {Domingo:0,Lunes:0,Martes:0,Miércoles:0,Jueves:0,Viernes:0,Sábado:0};
+  const porHora = {};
+  const porCancha = {};
+
+  for(const k of Object.keys(reservas||{})){
+    const p = parseClave(k); if(!p || p.complejo!==complejoActivo) continue;
+    if(p.tipo==="nuevo"){
+      if(desde && p.fechaISO < desde) continue;
+      if(hasta && p.fechaISO > hasta) continue;
+    } else { continue; }
+    if(selCancha!=="__ALL__" && p.cancha !== selCancha) continue;
+
+    const r = reservas[k] || {};
+    if(r.bloqueado){ bloqueosCont++; continue; }
+
+    reservasCont++;
+    seniasCobradas += Number(r.monto || r.senia || r.precio || 0) || 0;
+
+    const ci = canchaInfo(p.cancha);
+    totalEstimado += (ci.jugadores||0) * (ci.precioPP||0);
+
+    try{
+      const dname = diasSemana[fromISO(p.fechaISO).getDay()];
+      porDiaSemana[dname] = (porDiaSemana[dname]||0) + 1;
+    }catch(_){}
+    porHora[p.hora] = (porHora[p.hora]||0) + 1;
+    porCancha[p.cancha] = (porCancha[p.cancha]||0) + 1;
   }
-}
-async function guardarMP() {
-  const complexId = state.complexId;
-  const payload = {
-    mp_user_id: document.querySelector('#mpUserId').value.trim() || null,
-    mp_public_key: document.querySelector('#mpPK').value.trim() || null,
-    mp_access_token: document.querySelector('#mpAT').value.trim() || null,
-    mp_refresh_token: document.querySelector('#mpRT').value.trim() || null
-  };
-  await fetch(`${API_BASE}/complejos/${complexId}/mp/credenciales`, {
-    method: 'POST',
-    headers: { 'Content-Type':'application/json' },
-    body: JSON.stringify(payload)
+
+  const slots = contarSlotsRango(desde, hasta, selCancha);
+  const ocupacion = slots ? Math.round((reservasCont/slots)*100) : 0;
+
+  document.getElementById("anaKPIs").innerHTML = `
+    <div class="box"><div class="chip">Reservas</div><div class="num">${reservasCont}</div></div>
+    <div class="box"><div class="chip">Señas cobradas</div><div class="num">${formatoARS(seniasCobradas)}</div></div>
+    <div class="box"><div class="chip">Total estimado</div><div class="num">${formatoARS(totalEstimado)}</div></div>
+    <div class="box"><div class="chip">Bloqueos</div><div class="num">${bloqueosCont}</div></div>`;
+
+  const bar = document.getElementById("anaOcupacionBar");
+  const txt = document.getElementById("anaOcupacionTxt");
+  if(bar) bar.style.width = ocupacion + "%";
+  if(txt) txt.textContent = `${ocupacion}% de ocupación (${reservasCont}/${slots||0} turnos)`;
+
+  const orden = ["Lunes","Martes","Miércoles","Jueves","Viernes","Sábado","Domingo"];
+  const tSem = document.getElementById("anaTablaSemanal"); tSem.innerHTML = "";
+  orden.forEach(d=>{
+    const tr = document.createElement("tr");
+    tr.innerHTML = `<td>${d}</td><td>${porDiaSemana[d]||0}</td>`;
+    tSem.appendChild(tr);
   });
-  alert('Credenciales MP guardadas ✔');
-}
-// === Cargar switches de notificaciones ===
-async function cargarNotificaciones() {
-  try {
-    const res = await fetch(`${backendUrl}/leer-contacto/${complejoId}`);
-    const data = await res.json();
-    document.getElementById("notifEmail").checked = !!data.notif_email;
-    document.getElementById("notifWhats").checked = !!data.notif_whats;
-  } catch (e) {
-    console.warn("No se pudieron cargar notificaciones:", e);
-  }
+
+  const tHoras = document.getElementById("anaTopHoras"); tHoras.innerHTML = "";
+  Object.entries(porHora).sort((a,b)=> b[1]-a[1]).slice(0,8).forEach(([hora,cant])=>{
+    const tr = document.createElement("tr");
+    tr.innerHTML = `<td>${hora}</td><td>${cant}</td>`;
+    tHoras.appendChild(tr);
+  });
+
+  const tCancha = document.getElementById("anaPorCancha"); tCancha.innerHTML = "";
+  const canchasList = (selCancha==="__ALL__") ? (datos.canchas||[]).map(c=>c.nombre) : [selCancha];
+  canchasList.forEach(cn=>{
+    const resC = porCancha[cn]||0;
+    const sC = contarSlotsRango(desde, hasta, cn);
+    const occC = sC ? Math.round((resC/sC)*100) : 0;
+    const tr = document.createElement("tr");
+    tr.innerHTML = `
+      <td>${cn}</td>
+      <td>${resC}</td>
+      <td>
+        <div class="row" style="gap:10px;align-items:center">
+          <div style="min-width:52px">${occC}%</div>
+          <div class="ibar" style="width:180px"><i style="width:${occC}%"></i></div>
+        </div>
+      </td>`;
+    tCancha.appendChild(tr);
+  });
 }
 
-// === Guardar switches de notificaciones ===
-document.getElementById("guardarNotif").addEventListener("click", async () => {
-  const notif_email = document.getElementById("notifEmail").checked;
-  const notif_whats = document.getElementById("notifWhats").checked;
-  try {
-    await fetch(`${backendUrl}/guardar-notificaciones/${complejoId}`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ notif_email, notif_whats })
+/* ===================== Claves / export ===================== */
+function parseClave(k){
+  let m = k.match(/^(.+?)-(.+?)-(\d{4}-\d{2}-\d{2})-(\d{2}:\d{2})$/);
+  if(m) return { complejo:m[1], cancha:m[2], fechaISO:m[3], hora:m[4], tipo:"nuevo" };
+  m = k.match(/^(.+?)-(.+?)-([A-Za-zÁÉÍÓÚáéíóúÑñ]+)-(\d{2}:\d{2})$/);
+  if(m) return { complejo:m[1], cancha:m[2], diaNombre:m[3], hora:m[4], tipo:"viejo" };
+  return null;
+}
+async function exportarExcel(){
+  if(!loginOK){ alert("Inicie sesión para exportar."); return; }
+  await cargarReservas();
+  const desde = document.getElementById("cajaDesde").value;
+  const hasta = document.getElementById("cajaHasta").value;
+
+  const rows = [];
+  for(const k of Object.keys(reservas)){
+    const p = parseClave(k); if(!p || p.complejo!==complejoActivo) continue;
+
+    if(p.tipo==="nuevo"){
+      if(desde && p.fechaISO < desde) continue;
+      if(hasta && p.fechaISO > hasta) continue;
+    } else { if(desde || hasta) continue; }
+
+    const r = reservas[k] || {};
+    const { jugadores, precioPP } = canchaInfo(p.cancha);
+    const totalEstimado = jugadores * precioPP;
+
+    const estado =
+      r.bloqueado ? "Bloqueado" :
+      r.status==="approved" ? "Pagado" :
+      r.status==="manual" ? "Reservado (manual)" :
+      "Reservado";
+
+    rows.push({
+      "Fecha": (p.fechaISO || p.diaNombre || ""),
+      "Cancha": p.cancha,
+      "Hora": p.hora,
+      "Estado": estado,
+      "Cliente": r.nombre || "",
+      "Teléfono": r.telefono || "",
+      "Precio p/p": precioPP || "",
+      "Jugadores": jugadores || "",
+      "Total estimado": totalEstimado || "",
+      "Seña cobrada": r.monto || r.senia || r.precio || ""
     });
-    alert("Preferencias guardadas ✅");
-  } catch (e) {
-    alert("Error al guardar preferencias");
   }
-});
 
-// Llamar cuando carga la página
-window.addEventListener("load", cargarNotificaciones);
+  if(!rows.length){ alert("No hay movimientos en el período seleccionado."); return; }
 
+  const ws = XLSX.utils.json_to_sheet(rows, { origin: "A2" });
+  XLSX.utils.sheet_add_aoa(ws, [["Caja – " + (datos.nombre||complejoActivo)]], {origin:"A1"});
+  ws["!merges"] = [{ s:{r:0,c:0}, e:{r:0,c:9} }];
+  ws["!cols"] = [{wch:12},{wch:18},{wch:8},{wch:18},{wch:22},{wch:14},{wch:12},{wch:10},{wch:14},{wch:14}];
+
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws, "Caja");
+  const nombreArchivo = `caja_${complejoActivo}_${(desde||"todo")}_${(hasta||"")}.xlsx`;
+  XLSX.writeFile(wb, nombreArchivo);
+}
 </script>
 </body>
 </html>
