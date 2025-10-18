@@ -981,7 +981,8 @@ function renderDia(){
 
 /* ===================== Acciones de turnos ===================== */
 async function reservarManual(kNew,kOld){
-  const nombre = prompt("Nombre del cliente:"); if (!nombre) return;
+  const nombre = prompt("Nombre del cliente:");
+  if (!nombre) return;
 
   let telefono = prompt("Teléfono (WhatsApp) — opcional:");
   if (telefono === null) return;
@@ -996,26 +997,38 @@ async function reservarManual(kNew,kOld){
     }
   }
 
-  const { senia, total } = datosCanchaActual();
+  const { cancha, senia, total } = datosCanchaActual();
   const sugerida = senia || Math.round(total*0.3);
   const monto = Number(prompt("Seña cobrada ($):", String(sugerida))||"0");
 
-  await cargarY(()=>{
-    if(reservas[kNew]?.bloqueado){ alert("El horario está bloqueado."); return; }
-    reservas[kNew] = { status:"manual", nombre, telefono, monto, creado:Date.now() };
-    delete reservas[kOld];
-  });
+  // Persistir en DB (y que el backend notifique)
+  const fechaISO = document.getElementById("fechaDia").value;
+  const hora = kNew.split("-").pop(); // o tomá la hora como venías calculando
 
-  // Aviso al backend para mail "NUEVA RESERVA"
   try{
-    await fetch(`${backendUrl}/notificar-manual`,{
+    await fetch(`${backendUrl}/reservas/manual`, {
       method: "POST",
       headers: {"Content-Type":"application/json"},
-      body: JSON.stringify({ clave: kNew, complejoId: complejoActivo, nombre, telefono, monto })
+      body: JSON.stringify({
+        complejoId: complejoActivo,
+        cancha,
+        fechaISO,
+        hora,
+        nombre,
+        telefono,
+        monto
+      })
     });
-  }catch(e){ console.warn("No se pudo notificar la reserva manual:", e); }
-}
 
+    // seguir mostrando en el tablero local para feedback inmediato:
+    await cargarReservas(); // trae del backend lo ya insertado en DB
+    renderDia();
+  }catch(e){
+    console.warn("No se pudo crear la reserva manual en DB:", e);
+    alert("Error guardando el turno en la base.");
+    return;
+  }
+}
 function guardarTodo(obj){
   return fetch(`${backendUrl}/guardarReservas`,{
     method:"POST", headers:{ "Content-Type":"application/json" }, body: JSON.stringify(obj||{})
