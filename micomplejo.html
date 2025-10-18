@@ -815,7 +815,35 @@ async function guardarHorarios(){
   await fetch(`${backendUrl}/guardarDatos`,{ method:"POST", headers:{ "Content-Type":"application/json" }, body: JSON.stringify(all) });
   alert("Horarios guardados.");
 }
+/* ===================== Contacto del dueño (guardar en DB) ===================== */
+async function guardarContactoDueno() {
+  if (!complejoActivo) { alert("Primero iniciá sesión."); return; }
 
+  const payload = {
+    owner_phone: (document.getElementById("ownerWhats")?.value || "").trim(),
+    owner_email: (document.getElementById("ownerEmail")?.value || "").trim(),
+    // leemos solo por si existen; no son obligatorios acá
+    notif_whats: (document.getElementById("notifWhats") || document.getElementById("swWhats"))?.checked || false,
+    notif_email: (document.getElementById("swEmail") || document.getElementById("notifEmail"))?.checked || false,
+  };
+
+  try {
+    const r = await fetch(`${backendUrl}/complejos/${complejoActivo}/contacto`, {
+      method: "POST",
+      headers: { "Content-Type":"application/json" },
+      body: JSON.stringify(payload)
+    });
+    const j = await r.json();
+    if (!r.ok || !j.ok) throw new Error("server");
+
+    // refresco el formulario con lo que quedó guardado en Neon
+    await pintarContactoDueno();
+    alert("Contacto guardado ✔");
+  } catch (e) {
+    console.error("Error guardando contacto:", e);
+    alert("No se pudo guardar el contacto.");
+  }
+}
 /* ===================== Contacto del dueño ===================== */
 /* ===================== Contacto del dueño (cargar desde DB) ===================== */
 async function pintarContactoDueno() {
