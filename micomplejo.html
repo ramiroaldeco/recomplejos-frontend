@@ -1010,6 +1010,7 @@ async function reservarManual(kNew,kOld){
   }
 
   const { cancha, senia, total } = datosCanchaActual();
+  const canchaSlug = slugCancha(cancha);
   const sugerida = senia || Math.round(total*0.3);
   const monto = Number(prompt("Seña cobrada ($):", String(sugerida))||"0");
 
@@ -1023,7 +1024,7 @@ async function reservarManual(kNew,kOld){
       headers: {"Content-Type":"application/json"},
       body: JSON.stringify({
         complejoId: complejoActivo,
-        cancha,
+        cancha: canchaSlug,      // <- ENVIAMOS SLUG
         fechaISO,
         hora,
         nombre,
