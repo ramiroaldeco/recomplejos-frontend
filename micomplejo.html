@@ -550,6 +550,14 @@ function activar(id){
 function showLoader(msg="Cargando…"){ const o=$("#loadingOverlay"), m=$("#loadingMsg"); if(m) m.textContent=msg; if(o) o.classList.add("show"); }
 function hideLoader(){ const o=$("#loadingOverlay"); if(o) o.classList.remove("show"); }
 
+function slugCancha(nombre = "") {
+  return String(nombre)
+    .toLowerCase()
+    .normalize('NFD').replace(/[\u0300-\u036f]/g, '') // saca tildes
+    .replace(/\s+/g, '')
+    .replace(/[^a-z0-9]/g, '');
+}
+
 /* Fechas/clave/moneda */
 function toISODate(d){ const y=d.getFullYear(), m=String(d.getMonth()+1).padStart(2,"0"), dd=String(d.getDate()).padStart(2,"0"); return `${y}-${m}-${dd}`; }
 function fromISO(s){ const [y,m,d] = (s||"").split("-").map(Number); return new Date(y||0,(m||1)-1,d||1,0,0,0,0); }
@@ -557,8 +565,12 @@ function nombreDiaISO(s){ return diasSemana[fromISO(s).getDay()] || "Lunes"; }
 function entre(h, d, hst){ return (d<=hst) ? (h>=d && h<=hst) : (h>=d || h<=hst); }
 function horaPasada(fechaISO, hora){ const [H,M] = hora.split(":").map(Number); const t = fromISO(fechaISO); t.setHours(H,M,0,0); return t < new Date(); }
 function formatoARS(n){ return new Intl.NumberFormat('es-AR',{style:'currency',currency:'ARS',maximumFractionDigits:0}).format(Number(n||0)); }
-function claveNueva(cancha, fechaISO, hora){ return `${complejoActivo}-${cancha}-${fechaISO}-${hora}`; }
-function claveVieja(cancha, nomDia, hora){ return `${complejoActivo}-${cancha}-${nomDia}-${hora}`; }
+function claveNueva(cancha, fechaISO, hora){
+  return `${complejoActivo}-${slugCancha(cancha)}-${fechaISO}-${hora}`;
+}
+function claveVieja(cancha, nomDia, hora){
+  return `${complejoActivo}-${slugCancha(cancha)}-${nomDia}-${hora}`;
+}
 
 /* ===================== Inicio ===================== */
 document.addEventListener("DOMContentLoaded", async ()=>{
