@@ -1019,19 +1019,20 @@ async function reservarManual(kNew,kOld){
   const hora = kNew.split("-").pop(); // o tomá la hora como venías calculando
 
   try{
-    await fetch(`${backendUrl}/reservas/manual`, {
-      method: "POST",
-      headers: {"Content-Type":"application/json"},
-      body: JSON.stringify({
-        complejoId: complejoActivo,
-        cancha: canchaSlug,      // <- ENVIAMOS SLUG
-        fechaISO,
-        hora,
-        nombre,
-        telefono,
-        monto
-      })
-    });
+await fetch(`${backendUrl}/reservar-manual`, {
+  method: "POST",
+  headers: {'Content-Type': 'application/json'},
+  body: JSON.stringify({
+    complejoId: complejoActivo,
+    cancha: canchaSlug,
+    fechaISO,
+    hora,
+    nombre,
+    telefono,
+    monto
+  })
+});
+
 
     // seguir mostrando en el tablero local para feedback inmediato:
     await cargarReservas(); // trae del backend lo ya insertado en DB
