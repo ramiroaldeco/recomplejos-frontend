@@ -1010,23 +1010,22 @@ async function reservarManual(kNew, kOld){
   }
 
   const { cancha, senia, total } = datosCanchaActual();
-  const canchaSlug = slugCancha(cancha); // (no se usa para DB, queda por compat)
+  const canchaSlug = slugCancha(cancha);
   const sugerida = senia || Math.round(total * 0.3);
   const monto = Number(prompt("Seña cobrada ($):", String(sugerida)) || "0");
 
-  // Persistir en DB (y que el backend notifique)
   const fechaISO = document.getElementById("fechaDia").value;
-  const hora = (kNew || "").split("-").pop(); // ej: clave "complejo-cancha-YYYY-MM-DD-23:00"
+  const hora = (kNew || "").split("-").pop().slice(0,5); // fuerza formato HH:MM
 
   try {
-    document.body.style.cursor = "wait"; // mostrar espera visual
+    document.body.style.cursor = "wait";
 
     const resp = await fetch(`${backendUrl}/reservas/manual`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         complejoId: complejoActivo,
-        cancha: cancha,      // usar el nombre real de la cancha, NO el slug
+        cancha: cancha,
         fechaISO,
         hora,
         nombre,
@@ -1042,8 +1041,9 @@ async function reservarManual(kNew, kOld){
       throw new Error(err || "Fallo en /reservas/manual");
     }
 
-    // ✅ Actualizar directamente el estado local sin recargar
-    const key = `${complejoActivo}-${slugCancha(cancha)}-${fechaISO}-${hora}`;
+    // ✅ normalizamos clave exactamente como la usa el backend
+    const hh = hora.slice(0,5);
+    const key = `${complejoActivo}-${slugCancha(cancha)}-${fechaISO}-${hh}`;
     reservas[key] = {
       status: "manual",
       nombre,
@@ -1051,10 +1051,10 @@ async function reservarManual(kNew, kOld){
       monto
     };
 
-    // Re-renderizar inmediatamente
+    // 🔄 Render inmediato
     renderDia();
 
-    // Y además, recargar desde la base unos segundos después (por si otro usuario también reservó algo)
+    // ⏳ Re-sync con la base luego de 2 seg
     setTimeout(async () => {
       await cargarReservas();
       renderDia();
@@ -1064,10 +1064,8 @@ async function reservarManual(kNew, kOld){
     document.body.style.cursor = "default";
     console.warn("No se pudo crear la reserva manual:", e);
     alert("Error guardando el turno en la base: " + (e?.message || e));
-    return;
   }
-} // <-- cierre de reservarManual ✅
-
+}
 function guardarTodo(obj){
   return fetch(`${backendUrl}/guardarReservas`,{
     method:"POST",
