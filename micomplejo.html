@@ -1019,12 +1019,12 @@ async function reservarManual(kNew,kOld){
   const hora = kNew.split("-").pop(); // o tomá la hora como venías calculando
 
   try{
-await fetch(`${backendUrl}/reservar-manual`, {
+const resp = await fetch(`${backendUrl}/reservas/manual`, {
   method: "POST",
-  headers: {'Content-Type': 'application/json'},
+  headers: { "Content-Type": "application/json" },
   body: JSON.stringify({
     complejoId: complejoActivo,
-    cancha: canchaSlug,
+    cancha: cancha,          // 👈 ACÁ: usar el nombre real, NO el slug
     fechaISO,
     hora,
     nombre,
@@ -1032,16 +1032,11 @@ await fetch(`${backendUrl}/reservar-manual`, {
     monto
   })
 });
-
-
-    // seguir mostrando en el tablero local para feedback inmediato:
-    await cargarReservas(); // trae del backend lo ya insertado en DB
-    renderDia();
-  }catch(e){
-    console.warn("No se pudo crear la reserva manual en DB:", e);
-    alert("Error guardando el turno en la base.");
-    return;
-  }
+if (!resp.ok) {
+  const err = await resp.text();
+  alert("Error al reservar: " + err);
+  return;
+}
 }
 function guardarTodo(obj){
   return fetch(`${backendUrl}/guardarReservas`,{
