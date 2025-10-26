@@ -992,7 +992,7 @@ function renderDia(){
 }
 
 /* ===================== Acciones de turnos ===================== */
-async function reservarManual(kNew,kOld){
+async function reservarManual(kNew, kOld){
   const nombre = prompt("Nombre del cliente:");
   if (!nombre) return;
 
@@ -1010,58 +1010,70 @@ async function reservarManual(kNew,kOld){
   }
 
   const { cancha, senia, total } = datosCanchaActual();
-  const canchaSlug = slugCancha(cancha);
-  const sugerida = senia || Math.round(total*0.3);
-  const monto = Number(prompt("Seña cobrada ($):", String(sugerida))||"0");
+  const canchaSlug = slugCancha(cancha); // (no se usa para DB, queda por compat)
+  const sugerida = senia || Math.round(total * 0.3);
+  const monto = Number(prompt("Seña cobrada ($):", String(sugerida)) || "0");
 
   // Persistir en DB (y que el backend notifique)
   const fechaISO = document.getElementById("fechaDia").value;
-  const hora = kNew.split("-").pop(); // o tomá la hora como venías calculando
+  const hora = (kNew || "").split("-").pop(); // ej: clave "complejo-cancha-YYYY-MM-DD-23:00"
 
-try {
-  const resp = await fetch(`${backendUrl}/reservas/manual`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({
-      complejoId: complejoActivo,
-      cancha: cancha,      // usar el nombre real de la cancha, NO el slug
-      fechaISO,
-      hora,
-      nombre,
-      telefono,
-      monto
-    })
-  });
+  try {
+    const resp = await fetch(`${backendUrl}/reservas/manual`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        complejoId: complejoActivo,
+        cancha: cancha,      // usar el nombre real de la cancha, NO el slug
+        fechaISO,
+        hora,
+        nombre,
+        telefono,
+        monto
+      })
+    });
 
-  if (!resp.ok) {
-    const err = await resp.text();
-    throw new Error(err || "Fallo en /reservas/manual");
+    if (!resp.ok) {
+      const err = await resp.text();
+      throw new Error(err || "Fallo en /reservas/manual");
+    }
+
+    // Si guardó OK, recargar y re-renderizar
+    await cargarReservas();
+    renderDia();
+
+  } catch (e) {
+    console.warn("No se pudo crear la reserva manual:", e);
+    alert("Error guardando el turno en la base: " + (e?.message || e));
+    return;
   }
+} // <-- cierre de reservarManual ✅
 
-  // Si guardó OK, recargá reservas y re-renderizá
-  await cargarReservas();
-  renderDia();
-
-} catch (e) {
-  console.warn("No se pudo crear la reserva manual:", e);
-  alert("Error guardando el turno en la base: " + (e?.message || e));
-  return;
-}
 function guardarTodo(obj){
   return fetch(`${backendUrl}/guardarReservas`,{
-    method:"POST", headers:{ "Content-Type":"application/json" }, body: JSON.stringify(obj||{})
-  }).then(r=>r.json());
+    method:"POST",
+    headers:{ "Content-Type":"application/json" },
+    body: JSON.stringify(obj || {})
+  }).then(r => r.json());
 }
-async function cargarY(fn){ await cargarReservas(); await fn(); await guardarTodo(reservas); renderDia(); }
 
-function cancelarTurno(kNew,kOld){
+async function cargarY(fn){
+  await cargarReservas();
+  await fn();
+  await guardarTodo(reservas);
+  renderDia();
+}
+
+function cancelarTurno(kNew, kOld){
   if(!confirm("¿Confirma la cancelación de la reserva?")) return;
   cargarY(()=>{ delete reservas[kNew]; delete reservas[kOld]; });
 }
-function bloquearTurno(kNew,kOld){
-  cargarY(()=>{ reservas[kNew]={bloqueado:true, creado:Date.now()}; delete reservas[kOld]; });
+
+function bloquearTurno(kNew, kOld){
+  cargarY(()=>{ reservas[kNew] = { bloqueado:true, creado:Date.now() }; delete reservas[kOld]; });
 }
-function desbloquearTurno(kNew,kOld){
+
+function desbloquearTurno(kNew, kOld){
   cargarY(()=>{ delete reservas[kNew]; delete reservas[kOld]; });
 }
 
@@ -1075,7 +1087,10 @@ function horasRangoParaFecha(fechaISO){
   const h  = (datos.horarios||{})[nd] || {};
   const desde = h.desde || "18:00", hasta = h.hasta || "23:00";
   const out = [];
-  for(let H=0; H<24; H++){ const hh = `${String(H).padStart(2,"0")}:00`; if(entre(hh, desde, hasta)) out.push(hh); }
+  for(let H=0; H<24; H++){
+    const hh = `${String(H).padStart(2,"0")}:00`;
+    if(entre(hh, desde, hasta)) out.push(hh);
+  }
   return out;
 }
 function contarSlotsRango(desdeISO, hastaISO, canchaNameOrAll="__ALL__"){
@@ -1186,6 +1201,7 @@ function parseClave(k){
   if(m) return { complejo:m[1], cancha:m[2], diaNombre:m[3], hora:m[4], tipo:"viejo" };
   return null;
 }
+
 async function exportarExcel(){
   if(!loginOK){ alert("Inicie sesión para exportar."); return; }
   await cargarReservas();
@@ -1237,6 +1253,7 @@ async function exportarExcel(){
   const nombreArchivo = `caja_${complejoActivo}_${(desde||"todo")}_${(hasta||"")}.xlsx`;
   XLSX.writeFile(wb, nombreArchivo);
 }
+
 </script>
 </body>
 </html>
