@@ -1019,6 +1019,8 @@ async function reservarManual(kNew, kOld){
   const hora = (kNew || "").split("-").pop(); // ej: clave "complejo-cancha-YYYY-MM-DD-23:00"
 
   try {
+    document.body.style.cursor = "wait"; // mostrar espera visual
+
     const resp = await fetch(`${backendUrl}/reservas/manual`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -1033,16 +1035,33 @@ async function reservarManual(kNew, kOld){
       })
     });
 
+    document.body.style.cursor = "default";
+
     if (!resp.ok) {
       const err = await resp.text();
       throw new Error(err || "Fallo en /reservas/manual");
     }
 
-    // Si guardó OK, recargar y re-renderizar
-    await cargarReservas();
+    // ✅ Actualizar directamente el estado local sin recargar
+    const key = `${complejoActivo}-${slugCancha(cancha)}-${fechaISO}-${hora}`;
+    reservas[key] = {
+      status: "manual",
+      nombre,
+      telefono,
+      monto
+    };
+
+    // Re-renderizar inmediatamente
     renderDia();
 
+    // Y además, recargar desde la base unos segundos después (por si otro usuario también reservó algo)
+    setTimeout(async () => {
+      await cargarReservas();
+      renderDia();
+    }, 2000);
+
   } catch (e) {
+    document.body.style.cursor = "default";
     console.warn("No se pudo crear la reserva manual:", e);
     alert("Error guardando el turno en la base: " + (e?.message || e));
     return;
