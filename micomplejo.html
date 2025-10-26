@@ -1018,25 +1018,34 @@ async function reservarManual(kNew,kOld){
   const fechaISO = document.getElementById("fechaDia").value;
   const hora = kNew.split("-").pop(); // o tomá la hora como venías calculando
 
-  try{
-const resp = await fetch(`${backendUrl}/reservas/manual`, {
-  method: "POST",
-  headers: { "Content-Type": "application/json" },
-  body: JSON.stringify({
-    complejoId: complejoActivo,
-    cancha: cancha,          // 👈 ACÁ: usar el nombre real, NO el slug
-    fechaISO,
-    hora,
-    nombre,
-    telefono,
-    monto
-  })
-});
-if (!resp.ok) {
-  const err = await resp.text();
-  alert("Error al reservar: " + err);
+try {
+  const resp = await fetch(`${backendUrl}/reservas/manual`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      complejoId: complejoActivo,
+      cancha: cancha,      // usar el nombre real de la cancha, NO el slug
+      fechaISO,
+      hora,
+      nombre,
+      telefono,
+      monto
+    })
+  });
+
+  if (!resp.ok) {
+    const err = await resp.text();
+    throw new Error(err || "Fallo en /reservas/manual");
+  }
+
+  // Si guardó OK, recargá reservas y re-renderizá
+  await cargarReservas();
+  renderDia();
+
+} catch (e) {
+  console.warn("No se pudo crear la reserva manual:", e);
+  alert("Error guardando el turno en la base: " + (e?.message || e));
   return;
-}
 }
 function guardarTodo(obj){
   return fetch(`${backendUrl}/guardarReservas`,{
