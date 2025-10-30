@@ -218,7 +218,7 @@
     </div>
   </div>
 
-  <!-- ===== Helpers horarios (sin cambios funcionales) ===== -->
+  <!-- ===== Helpers horarios & claves ===== -->
   <script>
     // Normaliza el nombre del día (quita tildes) → "Miércoles" == "Miercoles"
     function canonDia(d) {
@@ -242,9 +242,18 @@
       const t = new Date(); t.setHours(h, m, 0, 0);
       return t < ahora;
     }
+    // === SLUG de cancha (debe coincidir con el backend)
+    function slugCancha(nombre=""){
+      return String(nombre).toLowerCase().replace(/\s+/g,"").replace(/[^a-z0-9]/g,"");
+    }
+    // yyyy-mm-dd desde Date
+    function ymd(d){
+      try{ return (d instanceof Date? d : new Date(d)).toISOString().slice(0,10); }
+      catch{ return ""; }
+    }
   </script>
 
-  <!-- ===== Lógica de la página (misma, con loader y pequeños mejoras de UX) ===== -->
+  <!-- ===== Lógica de la página ===== -->
   <script>
     const backendUrl = "https://recomplejos-backend.onrender.com";
     const diasSemana = ["Domingo", "Lunes", "Martes", "Miércoles", "Jueves", "Viernes", "Sábado"];
@@ -263,7 +272,7 @@
       if(o) o.classList.remove("show");
     }
 
-    function cargarVistaComplejo() {
+    async function cargarVistaComplejo() {
       const params = new URLSearchParams(window.location.search);
       const complejo = params.get("complejo");
       if (!complejo) {
@@ -273,34 +282,39 @@
       complejoSeleccionado = complejo;
 
       showLoader("Cargando complejo…");
-      fetch(`${backendUrl}/datos_complejos?t=${Date.now()}`, { cache:"no-store" })
-        .then(r => r.json())
-        .then(data => {
-          const info = data[complejoSeleccionado];
-          if (!info) {
-            document.body.innerHTML = "<h2 style='text-align:center;color:#ffb3b3'>Complejo no encontrado</h2>";
-            return;
-          }
+      try{
+        // Traigo datos y soporto wrapper {data:...}
+        const r = await fetch(`${backendUrl}/datos_complejos?t=${Date.now()}`, { cache:"no-store" });
+        const raw = await r.json();
+        const datos = raw?.data || raw;
+        const info = datos[complejoSeleccionado];
 
-          document.getElementById("nombreComplejo").textContent = info.nombre || complejo;
-          document.getElementById("mapaIframe").innerHTML = info.maps || "";
+        if (!info) {
+          document.body.innerHTML = "<h2 style='text-align:center;color:#ffb3b3'>Complejo no encontrado</h2>";
+          return;
+        }
 
-          const lista = document.getElementById("serviciosLista");
-          lista.innerHTML = "";
-          (info?.servicios || []).forEach(s => {
-            const li = document.createElement("li");
-            li.textContent = s;
-            lista.appendChild(li);
-          });
+        document.getElementById("nombreComplejo").textContent = info.nombre || complejo;
+        document.getElementById("mapaIframe").innerHTML = info.maps || "";
 
-          mostrarImagenesCarrusel(info.imagenes?.length ? info.imagenes : [
-            "https://upload.wikimedia.org/wikipedia/commons/thumb/a/ac/No_image_available.svg/480px-No_image_available.svg.png"
-          ]);
+        const lista = document.getElementById("serviciosLista");
+        lista.innerHTML = "";
+        (info?.servicios || []).forEach(s => {
+          const li = document.createElement("li");
+          li.textContent = s;
+          lista.appendChild(li);
+        });
 
-          cargarTurnosPorCancha(info);
-        })
-        .catch(()=>{})
-        .finally(()=>hideLoader());
+        mostrarImagenesCarrusel(info.imagenes?.length ? info.imagenes : [
+          "https://upload.wikimedia.org/wikipedia/commons/thumb/a/ac/No_image_available.svg/480px-No_image_available.svg.png"
+        ]);
+
+        await cargarTurnosPorCancha(info);
+      }catch(_){
+        document.body.innerHTML = "<h2 style='text-align:center;color:#ffb3b3'>Error cargando datos del complejo</h2>";
+      }finally{
+        hideLoader();
+      }
     }
 
     function mostrarImagenesCarrusel(imagenes) {
@@ -324,7 +338,8 @@
 
     async function cargarTurnosPorCancha(info) {
       showLoader("Cargando turnos…");
-      const reservas = await fetch(`${backendUrl}/reservas?t=${Date.now()}`, { cache:"no-store" }).then(r => r.json());
+      const reservasResp = await fetch(`${backendUrl}/reservas?t=${Date.now()}`, { cache:"no-store" });
+      const reservas = await reservasResp.json();  // objeto { "<id>-<slugCancha>-<YYYY-MM-DD>-<HH:MM>": {...} }
       hideLoader();
 
       const container = document.getElementById("tablasTurnos");
@@ -337,10 +352,10 @@
         div.className = "card";
         div.innerHTML = `
           <h2>${cancha.nombre || "Cancha"}</h2>
-          <p style="margin:0 8px 10px;color:${'var(--muted)'}">
-            <strong>Precio total:</strong> $${cancha.precioTotal || "?"} &nbsp; 
+          <p style="margin:0 8px 10px;color:var(--muted)">
+            <strong>Precio total:</strong> $${cancha.precioTotal ?? (cancha.precioPorJugador && cancha.jugadores ? Number(cancha.precioPorJugador)*Number(cancha.jugadores) : "?")} &nbsp; 
             <strong>Jugadores:</strong> ${cancha.jugadores || "?"} &nbsp; 
-            <strong>Precio por jugador:</strong> $${cancha.precioPorJugador || "?"} &nbsp;
+            <strong>Precio por jugador:</strong> $${cancha.precioPorJugador || cancha.precioPP || "?"} &nbsp;
             ${cancha.senia ? `<strong>Seña:</strong> $${cancha.senia}` : ""}
           </p>
           <div id="turnos-${(cancha.nombre || 'Cancha').replace(/\s+/g, '_')}"></div>
@@ -363,7 +378,7 @@
         const nombreDia = diasSemana[fecha.getDay()];
         const dia = fecha.getDate().toString().padStart(2, "0");
         const mes = (fecha.getMonth() + 1).toString().padStart(2, "0");
-        dias.push({ nombre: nombreDia, fecha: `${dia}/${mes}`, fechaReal: fecha });
+        dias.push({ nombre: nombreDia, fechaCorta: `${dia}/${mes}`, fechaReal: fecha, fechaISO: ymd(fecha) });
         html += `<th>${nombreDia}<br>${dia}/${mes}</th>`;
       }
 
@@ -382,9 +397,6 @@
         html += `<tr><td>${hora}</td>`;
 
         for (const d of dias) {
-          // Clave única de turno
-          const clave = `${complejoSeleccionado}-${cancha.nombre}-${d.nombre}-${hora}`;
-
           const hDia = getHorario(horarios, d.nombre);
           const desde = hDia.desde || "18:00";
           const hasta = hDia.hasta || "23:00";
@@ -401,12 +413,16 @@
             continue;
           }
 
+          // === CLAVE EXACTA que usa el backend:
+          // `${complex_id}-${slugCancha}-${YYYY-MM-DD}-${HH:MM}`
+          const clave = `${complejoSeleccionado}-${slugCancha(cancha.nombre)}-${d.fechaISO}-${hora}`;
+
           if (reservas[clave]) {
             html += `<td class="reservado">Reservado</td>`;
             continue;
           }
 
-          html += `<td class="disponible" onclick="reservarTurno('${clave}', '${cancha.nombre}', '${cancha.senia}', document.getElementById('nombre').value, document.getElementById('telefono').value)">Reservar</td>`;
+          html += `<td class="disponible" onclick="reservarTurno('${clave}', '${cancha.nombre}', '${cancha.senia || 0}', '${d.fechaISO}', '${hora}', document.getElementById('nombre').value, document.getElementById('telefono').value)">Reservar</td>`;
         }
 
         html += `</tr>`;
@@ -417,80 +433,82 @@
     }
   </script>
 
-  <!-- ===== Reservar (igual + loader + anticatoque) ===== -->
+  <!-- ===== Reservar (con cancha/fecha/hora reales) ===== -->
   <script>
-// Flag para evitar doble click
-let reservando = false;
+    // Flag para evitar doble click
+    let reservando = false;
 
-async function reservarTurno(clave, cancha, senia, nombre, telefono) {
-  if (reservando) return;
+    async function reservarTurno(clave, cancha, senia, fechaISO, hora, nombre, telefono) {
+      if (reservando) return;
 
-  if (!nombre || !nombre.trim() || !telefono || !telefono.trim()) {
-    alert("Ingresá tu nombre y teléfono");
-    try{
-      if(!nombre?.trim()) document.getElementById("nombre").focus();
-      else document.getElementById("telefono").focus();
-    }catch(_){}
-    return;
-  }
+      if (!nombre || !nombre.trim() || !telefono || !telefono.trim()) {
+        alert("Ingresá tu nombre y teléfono");
+        try{
+          if(!nombre?.trim()) document.getElementById("nombre").focus();
+          else document.getElementById("telefono").focus();
+        }catch(_){}
+        return;
+      }
 
-  const monto = Number(senia);
-  if (!monto || isNaN(monto) || monto <= 0) {
-    alert("Error: esta cancha no tiene seña definida correctamente.");
-    return;
-  }
+      const monto = Number(senia);
+      if (!monto || isNaN(monto) || monto <= 0) {
+        alert("Error: esta cancha no tiene seña definida correctamente.");
+        return;
+      }
 
-  if (!complejoSeleccionado) {
-    alert("Falta el ID del complejo.");
-    return;
-  }
+      if (!complejoSeleccionado) {
+        alert("Falta el ID del complejo.");
+        return;
+      }
 
-  const ok = confirm(`Para reservar ${cancha} debés pagar una seña de $${monto}. ¿Deseás continuar?`);
-  if (!ok) return;
+      const ok = confirm(`Para reservar ${cancha} (${fechaISO} ${hora}) debés pagar una seña de $${monto}. ¿Deseás continuar?`);
+      if (!ok) return;
 
-  reservando = true;
-  showLoader("Redirigiendo a Mercado Pago…");
-  try {
-    const res = await fetch(`${backendUrl}/crear-preferencia`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        // compat con backend: usamos clave legacy si no pasamos fecha/hora
-        complejoId: complejoSeleccionado,
-        clave,                       // la clave que generaste al armar la tabla
-        titulo: `Seña ${cancha}`,
-        precio: monto,               // seña
-        nombre: nombre.trim(),
-        telefono: telefono.trim()
-      })
-    }); // <<--- ESTO ES CLAVE: cierra el objeto de opciones y el fetch
-
-    const data = await res.json();
-
-    if (res.ok && data?.init_point) {
+      reservando = true;
+      showLoader("Redirigiendo a Mercado Pago…");
       try {
-        localStorage.setItem("reserva_clave", clave);
-        localStorage.setItem("reserva_nombre", nombre.trim());
-        localStorage.setItem("reserva_telefono", telefono.trim());
-      } catch (_) {}
-      window.location.href = data.init_point;
-    } else {
-      alert(data?.error || "No se pudo generar el link de pago.");
-    }
-  } catch (e) {
-    alert("Error al conectar con el servidor.");
-  } finally {
-    hideLoader();
-    reservando = false;
-  }
-}
+        const res = await fetch(`${backendUrl}/crear-preferencia`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            // ✅ pasamos datos reales (no sólo clave legacy)
+            complejoId: complejoSeleccionado,
+            cancha,
+            fecha: fechaISO,
+            hora,
+            titulo: `Seña ${cancha}`,
+            precio: monto,
+            nombre: nombre.trim(),
+            telefono: telefono.trim()
+          })
+        });
 
-// Init
-window.addEventListener("DOMContentLoaded", cargarVistaComplejo);
-</script>
+        const data = await res.json();
+
+        if (res.ok && data?.init_point) {
+          try {
+            localStorage.setItem("reserva_clave", clave);
+            localStorage.setItem("reserva_nombre", nombre.trim());
+            localStorage.setItem("reserva_telefono", telefono.trim());
+          } catch (_) {}
+          window.location.href = data.init_point;
+        } else {
+          alert(data?.error || "No se pudo generar el link de pago.");
+        }
+      } catch (e) {
+        alert("Error al conectar con el servidor.");
+      } finally {
+        hideLoader();
+        reservando = false;
+      }
+    }
+
+    // Init
+    window.addEventListener("DOMContentLoaded", cargarVistaComplejo);
+  </script>
 
 </body>
-</html>
+
 
 
 
