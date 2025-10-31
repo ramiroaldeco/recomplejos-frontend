@@ -377,68 +377,67 @@
   </script>
 
   <!-- ===== Reservar (con cancha/fecha/hora reales) ===== -->
-  <script>
-    let reservando=false;
+<script>
+let reservando = false;
 
-    async function reservarTurno(clave, cancha, senia, fechaISO, hora, nombre, telefono){
-      if(reservando) return;
+async function reservarTurno(clave, cancha, senia, fechaISO, hora, nombre, telefono){
+  if (reservando) return;
 
-      if(!nombre || !nombre.trim() || !telefono || !telefono.trim()){
-        alert("Ingresá tu nombre y teléfono");
-        try{ (!nombre?.trim()? document.getElementById("nombre") : document.getElementById("telefono")).focus(); }catch(_){}
-        return;
-      }
+  if (!nombre?.trim() || !telefono?.trim()){
+    alert("Ingresá tu nombre y teléfono");
+    try{ (!nombre?.trim()? document.getElementById("nombre") : document.getElementById("telefono")).focus(); }catch(_){}
+    return;
+  }
 
-      const monto=Number(senia);
-      if(!monto || isNaN(monto) || monto<=0){
-        alert("Error: esta cancha no tiene seña definida correctamente.");
-        return;
-      }
+  const monto = Number(senia);
+  if (!monto || isNaN(monto) || monto <= 0){ alert("Esta cancha no tiene seña definida."); return; }
+  if (!complejoSeleccionado){ alert("Falta el ID del complejo."); return; }
 
-      if(!complejoSeleccionado){
-        alert("Falta el ID del complejo.");
-        return;
-      }
+  if (!confirm(`Para reservar ${cancha} (${fechaISO} ${hora}) debés pagar una seña de $${monto}. ¿Continuar?`)) return;
 
-      const ok=confirm(`Para reservar ${cancha} (${fechaISO} ${hora}) debés pagar una seña de $${monto}. ¿Deseás continuar?`);
-      if(!ok) return;
+  reservando = true;
+  showLoader("Redirigiendo a Mercado Pago…");
 
-      reservando=true;
-      showLoader("Redirigiendo a Mercado Pago…");
+  try{
+    const res = await fetch(`${backendUrl}/crear-preferencia`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        complejoId: complejoSeleccionado,
+        cancha,
+        fecha: fechaISO,
+        fechaISO,          // mando ambos
+        hora,
+        titulo: `Seña ${cancha}`,
+        precio: monto,
+        senia: monto,      // mando ambos
+        nombre: nombre.trim(),
+        telefono: telefono.trim()
+      })
+    });
+    const data = await res.json();
+
+    if (res.ok && data?.init_point){
       try{
-        const res=await fetch(`${backendUrl}/crear-preferencia`,{
-          method:"POST",
-          headers:{ "Content-Type":"application/json" },
-          body:JSON.stringify({
-            complejoId:complejoSeleccionado,
-            cancha,
-            fecha:fechaISO,
-            hora,
-            titulo:`Seña ${cancha}`,
-            precio:monto,
-            nombre:nombre.trim(),
-            telefono:telefono.trim()
-          })
-        });
-        const data=await res.json();
-
-        if(res.ok && data?.init_point){
-          try{
-            localStorage.setItem("reserva_clave",clave);
-            localStorage.setItem("reserva_nombre",nombre.trim());
-            localStorage.setItem("reserva_telefono",telefono.trim());
-          }catch(_){}
-          window.location.href=data.init_point;
-        }else{
-          alert(data?.error || "No se pudo generar el link de pago.");
-        }
-      }catch(e){
-        alert("Error al conectar con el servidor.");
-      }finally{
-        hideLoader();
-        reservando=false;
-      }
+        localStorage.setItem("reserva_clave", clave);
+        localStorage.setItem("reserva_nombre", nombre.trim());
+        localStorage.setItem("reserva_telefono", telefono.trim());
+      }catch(_){}
+      location.href = data.init_point;
+    }else{
+      console.error("crear-preferencia 400:", data);
+      alert(data?.error || "No se pudo generar el link de pago.");
     }
+  }catch(e){
+    console.error("crear-preferencia error:", e);
+    alert("Error al conectar con el servidor.");
+  }finally{
+    hideLoader();
+    reservando = false;
+  }
+}
+</script>
+
 
     window.addEventListener("DOMContentLoaded", cargarVistaComplejo);
   </script>
