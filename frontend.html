@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+<!DOCTYPE html> 
 <html lang="es">
 <head>
   <meta charset="UTF-8" />
@@ -12,7 +12,7 @@
 
   <style>
     :root{
-      --bg:#0d1512;           /* base oscura que usamos en inicio */
+      --bg:#0d1512;
       --surface:#101915;
       --card:#121f19;
       --text:#eaf6f0;
@@ -138,7 +138,7 @@
     #loadingOverlay .msg{ color:#fff; font-weight:700 }
     @keyframes spin{ to { transform: rotate(360deg) } }
 
-    /* Responsive (móvil primero) */
+    /* Responsive */
     @media (max-width: 900px){
       .row{ flex-direction:column }
       .grid-info{ grid-template-columns: 1fr }
@@ -151,7 +151,7 @@
       th,td{ padding:6px }
     }
 
-    /* Sutiles blobs del fondo (como inicio) */
+    /* Fondos */
     body::before{
       content:"";
       position: fixed; inset:-20% -10% auto -10%;
@@ -220,90 +220,60 @@
 
   <!-- ===== Helpers horarios & claves ===== -->
   <script>
-    // Normaliza el nombre del día (quita tildes) → "Miércoles" == "Miercoles"
-    function canonDia(d) {
-      return (d || "").normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+    function canonDia(d){ return (d||"").normalize("NFD").replace(/[\u0300-\u036f]/g,""); }
+    function getHorario(horarios, nombreDia){ return horarios[nombreDia] || horarios[canonDia(nombreDia)] || {}; }
+    function entre(hora, desde, hasta){
+      if(!desde||!hasta) return false;
+      return (desde<=hasta) ? (hora>=desde && hora<=hasta) : (hora>=desde || hora<=hasta);
     }
-    // Busca el horario del día tolerando tildes
-    function getHorario(horarios, nombreDia) {
-      return horarios[nombreDia] || horarios[canonDia(nombreDia)] || {};
+    function horaEsPasada(hhmm){
+      const [h,m]=(hhmm||"00:00").split(":").map(Number);
+      const ahora=new Date(); const t=new Date(); t.setHours(h,m,0,0);
+      return t<ahora;
     }
-    // ¿hora está entre [desde, hasta]? Soporta trasnoche (hasta < desde)
-    function entre(hora, desde, hasta) {
-      if (!desde || !hasta) return false;
-      return (desde <= hasta)
-        ? (hora >= desde && hora <= hasta)     // mismo día
-        : (hora >= desde || hora <= hasta);    // cruza medianoche
-    }
-    // Oculta horas pasadas del día actual
-    function horaEsPasada(hhmm) {
-      const [h, m] = (hhmm || "00:00").split(":").map(Number);
-      const ahora = new Date();
-      const t = new Date(); t.setHours(h, m, 0, 0);
-      return t < ahora;
-    }
-    // === SLUG de cancha (debe coincidir con el backend)
-    function slugCancha(nombre=""){
-      return String(nombre).toLowerCase().replace(/\s+/g,"").replace(/[^a-z0-9]/g,"");
-    }
-    // yyyy-mm-dd desde Date
-    function ymd(d){
-      try{ return (d instanceof Date? d : new Date(d)).toISOString().slice(0,10); }
-      catch{ return ""; }
-    }
+    function slugCancha(nombre=""){ return String(nombre).toLowerCase().replace(/\s+/g,"").replace(/[^a-z0-9]/g,""); }
+    function ymd(d){ try{ return (d instanceof Date? d : new Date(d)).toISOString().slice(0,10); } catch{ return ""; } }
   </script>
 
   <!-- ===== Lógica de la página ===== -->
   <script>
     const backendUrl = "https://recomplejos-backend.onrender.com";
-    const diasSemana = ["Domingo", "Lunes", "Martes", "Miércoles", "Jueves", "Viernes", "Sábado"];
+    const diasSemana = ["Domingo","Lunes","Martes","Miércoles","Jueves","Viernes","Sábado"];
     let complejoSeleccionado = "";
     let carruselIndex = 0;
 
-    /* Loader helpers */
     function showLoader(msg="Cargando…"){
-      const o = document.getElementById("loadingOverlay");
-      const m = document.getElementById("loadingMsg");
-      if(m) m.textContent = msg;
+      const o=document.getElementById("loadingOverlay");
+      const m=document.getElementById("loadingMsg");
+      if(m) m.textContent=msg;
       if(o) o.classList.add("show");
     }
-    function hideLoader(){
-      const o = document.getElementById("loadingOverlay");
-      if(o) o.classList.remove("show");
-    }
+    function hideLoader(){ const o=document.getElementById("loadingOverlay"); if(o) o.classList.remove("show"); }
 
-    async function cargarVistaComplejo() {
-      const params = new URLSearchParams(window.location.search);
-      const complejo = params.get("complejo");
-      if (!complejo) {
-        document.body.innerHTML = "<h2 style='text-align:center;color:#ffb3b3'>Complejo no especificado</h2>";
-        return;
-      }
-      complejoSeleccionado = complejo;
+    async function cargarVistaComplejo(){
+      const params=new URLSearchParams(window.location.search);
+      const complejo=params.get("complejo");
+      if(!complejo){ document.body.innerHTML="<h2 style='text-align:center;color:#ffb3b3'>Complejo no especificado</h2>"; return; }
+      complejoSeleccionado=complejo;
 
       showLoader("Cargando complejo…");
       try{
-        // Traigo datos y soporto wrapper {data:...}
-        const r = await fetch(`${backendUrl}/datos_complejos?t=${Date.now()}`, { cache:"no-store" });
-        const raw = await r.json();
-        const datos = raw?.data || raw;
-        const info = datos[complejoSeleccionado];
-
-        if (!info) {
-          document.body.innerHTML = "<h2 style='text-align:center;color:#ffb3b3'>Complejo no encontrado</h2>";
-          return;
+        const r=await fetch(`${backendUrl}/datos_complejos?t=${Date.now()}`,{cache:"no-store"});
+        const raw=await r.json();
+        const datos=raw?.data||raw||{};
+        // match exacto o flexible por si hay mayúsculas/espacios
+        let info = datos[complejoSeleccionado];
+        if(!info){
+          const entry = Object.entries(datos).find(([k])=> String(k).trim().toLowerCase() === String(complejoSeleccionado).trim().toLowerCase());
+          if(entry) info=entry[1];
         }
+        if(!info){ document.body.innerHTML="<h2 style='text-align:center;color:#ffb3b3'>Complejo no encontrado</h2>"; return; }
 
         document.getElementById("nombreComplejo").textContent = info.nombre || complejo;
         document.getElementById("mapaIframe").innerHTML = info.maps || "";
 
-        const lista = document.getElementById("serviciosLista");
-        lista.innerHTML = "";
-        (info?.servicios || []).forEach(s => {
-          const li = document.createElement("li");
-          li.textContent = s;
-          lista.appendChild(li);
-        });
+        const lista=document.getElementById("serviciosLista"); lista.innerHTML="";
+        (info.servicios||[]).forEach(s=>{ const li=document.createElement("li"); li.textContent=s; lista.appendChild(li); });
 
         mostrarImagenesCarrusel(info.imagenes?.length ? info.imagenes : [
           "https://upload.wikimedia.org/wikipedia/commons/thumb/a/ac/No_image_available.svg/480px-No_image_available.svg.png"
@@ -311,46 +281,33 @@
 
         await cargarTurnosPorCancha(info);
       }catch(_){
-        document.body.innerHTML = "<h2 style='text-align:center;color:#ffb3b3'>Error cargando datos del complejo</h2>";
-      }finally{
-        hideLoader();
-      }
+        document.body.innerHTML="<h2 style='text-align:center;color:#ffb3b3'>Error cargando datos del complejo</h2>";
+      }finally{ hideLoader(); }
     }
 
-    function mostrarImagenesCarrusel(imagenes) {
-      const contenedor = document.getElementById("carruselSlides");
-      contenedor.innerHTML = "";
-      imagenes.forEach(src => {
-        const img = document.createElement("img");
-        img.src = src;
-        contenedor.appendChild(img);
-      });
+    function mostrarImagenesCarrusel(imagenes){
+      const cont=document.getElementById("carruselSlides"); cont.innerHTML="";
+      imagenes.forEach(src=>{ const img=document.createElement("img"); img.src=src; cont.appendChild(img); });
       moverCarrusel(0);
     }
-
-    function moverCarrusel(direccion) {
-      const slides = document.getElementById("carruselSlides");
-      const total = slides.children.length;
-      if (total === 0) return;
-      carruselIndex = (carruselIndex + direccion + total) % total;
-      slides.style.transform = `translateX(-${carruselIndex * 100}%)`;
+    function moverCarrusel(dir){
+      const slides=document.getElementById("carruselSlides"); const total=slides.children.length; if(!total) return;
+      carruselIndex=(carruselIndex+dir+total)%total; slides.style.transform=`translateX(-${carruselIndex*100}%)`;
     }
 
-    async function cargarTurnosPorCancha(info) {
+    async function cargarTurnosPorCancha(info){
       showLoader("Cargando turnos…");
-      const reservasResp = await fetch(`${backendUrl}/reservas?t=${Date.now()}`, { cache:"no-store" });
-      const reservas = await reservasResp.json();  // objeto { "<id>-<slugCancha>-<YYYY-MM-DD>-<HH:MM>": {...} }
+      const reservasResp=await fetch(`${backendUrl}/reservas?t=${Date.now()}`,{cache:"no-store"});
+      const reservas=await reservasResp.json(); // { "<id>-<slugCancha>-<YYYY-MM-DD>-<HH:MM>": {...} }
       hideLoader();
 
-      const container = document.getElementById("tablasTurnos");
-      container.innerHTML = "";
+      const container=document.getElementById("tablasTurnos"); container.innerHTML="";
+      const canchas = info.canchas?.length ? info.canchas : [{ nombre:"Cancha", jugadores:"", precioTotal:"", precioPorJugador:"" }];
 
-      const canchas = info.canchas?.length ? info.canchas : [{ nombre: "Cancha", precioTotal: "", jugadores: "", precioPorJugador: "" }];
-
-      for (const cancha of canchas) {
-        const div = document.createElement("div");
-        div.className = "card";
-        div.innerHTML = `
+      for(const cancha of canchas){
+        const div=document.createElement("div");
+        div.className="card";
+        div.innerHTML=`
           <h2>${cancha.nombre || "Cancha"}</h2>
           <p style="margin:0 8px 10px;color:var(--muted)">
             <strong>Precio total:</strong> $${cancha.precioTotal ?? (cancha.precioPorJugador && cancha.jugadores ? Number(cancha.precioPorJugador)*Number(cancha.jugadores) : "?")} &nbsp; 
@@ -358,170 +315,133 @@
             <strong>Precio por jugador:</strong> $${cancha.precioPorJugador || cancha.precioPP || "?"} &nbsp;
             ${cancha.senia ? `<strong>Seña:</strong> $${cancha.senia}` : ""}
           </p>
-          <div id="turnos-${(cancha.nombre || 'Cancha').replace(/\s+/g, '_')}"></div>
+          <div id="turnos-${(cancha.nombre||'Cancha').replace(/\s+/g,'_')}"></div>
         `;
         container.appendChild(div);
-        renderTablaTurnos(info, cancha, reservas, `turnos-${(cancha.nombre || 'Cancha').replace(/\s+/g, '_')}`);
+        renderTablaTurnos(info, cancha, reservas, `turnos-${(cancha.nombre||'Cancha').replace(/\s+/g,'_')}`);
       }
     }
 
-    function renderTablaTurnos(info, cancha, reservas, contenedorId) {
-      const horarios = info.horarios || {};
-      const hoy = new Date();
-      const container = document.getElementById(contenedorId);
-      let html = `<div class="tabla-scroll"><table><thead><tr><th>Hora</th>`;
+    function renderTablaTurnos(info, cancha, reservas, contenedorId){
+      const horarios=info.horarios||{};
+      const hoy=new Date();
+      const container=document.getElementById(contenedorId);
+      let html=`<div class="tabla-scroll"><table><thead><tr><th>Hora</th>`;
 
-      const dias = [];
-      for (let i = 0; i < 7; i++) {
-        const fecha = new Date();
-        fecha.setDate(hoy.getDate() + i);
-        const nombreDia = diasSemana[fecha.getDay()];
-        const dia = fecha.getDate().toString().padStart(2, "0");
-        const mes = (fecha.getMonth() + 1).toString().padStart(2, "0");
-        dias.push({ nombre: nombreDia, fechaCorta: `${dia}/${mes}`, fechaReal: fecha, fechaISO: ymd(fecha) });
-        html += `<th>${nombreDia}<br>${dia}/${mes}</th>`;
+      const dias=[];
+      for(let i=0;i<7;i++){
+        const fecha=new Date(); fecha.setDate(hoy.getDate()+i);
+        const nombreDia=diasSemana[fecha.getDay()];
+        const dia=String(fecha.getDate()).padStart(2,"0");
+        const mes=String(fecha.getMonth()+1).padStart(2,"0");
+        dias.push({ nombre:nombreDia, fechaCorta:`${dia}/${mes}`, fechaReal:fecha, fechaISO:ymd(fecha) });
+        html+=`<th>${nombreDia}<br>${dia}/${mes}</th>`;
       }
+      html+=`</tr></thead><tbody>`;
 
-      html += `</tr></thead><tbody>`;
+      for(let h=0; h<24; h++){
+        const hora=`${String(h).padStart(2,"0")}:00`;
 
-      for (let h = 0; h < 24; h++) {
-        const hora = `${h.toString().padStart(2, "0")}:00`;
-
-        // Mostrar la fila si al menos un día está abierto en esa hora
-        let mostrarFila = dias.some(d => {
-          const hDia = getHorario(horarios, d.nombre);
-          return entre(hora, hDia.desde || "18:00", hDia.hasta || "23:00");
+        const mostrarFila=dias.some(d=>{
+          const hDia=getHorario(horarios,d.nombre);
+          return entre(hora, hDia.desde||"18:00", hDia.hasta||"23:00");
         });
-        if (!mostrarFila) continue;
+        if(!mostrarFila) continue;
 
-        html += `<tr><td>${hora}</td>`;
+        html+=`<tr><td>${hora}</td>`;
 
-        for (const d of dias) {
-          const hDia = getHorario(horarios, d.nombre);
-          const desde = hDia.desde || "18:00";
-          const hasta = hDia.hasta || "23:00";
+        for(const d of dias){
+          const hDia=getHorario(horarios,d.nombre);
+          const desde=hDia.desde||"18:00";
+          const hasta=hDia.hasta||"23:00";
 
-          if (!entre(hora, desde, hasta)) {
-            html += `<td class="deshabilitado">Cerrado</td>`;
-            continue;
-          }
+          if(!entre(hora,desde,hasta)){ html+=`<td class="deshabilitado">Cerrado</td>`; continue; }
 
-          // Si es hoy y la hora ya pasó, deshabilito
-          const esHoy = (new Date().toDateString() === d.fechaReal.toDateString());
-          if (esHoy && horaEsPasada(hora)) {
-            html += `<td class="deshabilitado">Pasado</td>`;
-            continue;
-          }
+          const esHoy=(new Date().toDateString()===d.fechaReal.toDateString());
+          if(esHoy && horaEsPasada(hora)){ html+=`<td class="deshabilitado">Pasado</td>`; continue; }
 
-          // === CLAVE EXACTA que usa el backend:
-          // `${complex_id}-${slugCancha}-${YYYY-MM-DD}-${HH:MM}`
-          const clave = `${complejoSeleccionado}-${slugCancha(cancha.nombre)}-${d.fechaISO}-${hora}`;
+          // 🔑 CLAVE EXACTA que usa el backend:
+          //  `${complex_id}-${slugCancha}-${YYYY-MM-DD}-${HH:MM}`
+          const clave=`${complejoSeleccionado}-${slugCancha(cancha.nombre)}-${d.fechaISO}-${hora}`;
 
-          if (reservas[clave]) {
-            html += `<td class="reservado">Reservado</td>`;
-            continue;
-          }
+          if(reservas && reservas[clave]){ html+=`<td class="reservado">Reservado</td>`; continue; }
 
-          html += `<td class="disponible" onclick="reservarTurno('${clave}', '${cancha.nombre}', '${cancha.senia || 0}', '${d.fechaISO}', '${hora}', document.getElementById('nombre').value, document.getElementById('telefono').value)">Reservar</td>`;
+          html+=`<td class="disponible" onclick="reservarTurno('${clave}','${cancha.nombre}','${cancha.senia||0}','${d.fechaISO}','${hora}',document.getElementById('nombre').value,document.getElementById('telefono').value)">Reservar</td>`;
         }
-
-        html += `</tr>`;
+        html+=`</tr>`;
       }
 
-      html += `</tbody></table></div>`;
-      container.innerHTML = html;
+      html+=`</tbody></table></div>`;
+      container.innerHTML=html;
     }
   </script>
 
   <!-- ===== Reservar (con cancha/fecha/hora reales) ===== -->
   <script>
-    // Flag para evitar doble click
-    let reservando = false;
+    let reservando=false;
 
-    async function reservarTurno(clave, cancha, senia, fechaISO, hora, nombre, telefono) {
-      if (reservando) return;
+    async function reservarTurno(clave, cancha, senia, fechaISO, hora, nombre, telefono){
+      if(reservando) return;
 
-      if (!nombre || !nombre.trim() || !telefono || !telefono.trim()) {
+      if(!nombre || !nombre.trim() || !telefono || !telefono.trim()){
         alert("Ingresá tu nombre y teléfono");
-        try{
-          if(!nombre?.trim()) document.getElementById("nombre").focus();
-          else document.getElementById("telefono").focus();
-        }catch(_){}
+        try{ (!nombre?.trim()? document.getElementById("nombre") : document.getElementById("telefono")).focus(); }catch(_){}
         return;
       }
 
-      const monto = Number(senia);
-      if (!monto || isNaN(monto) || monto <= 0) {
+      const monto=Number(senia);
+      if(!monto || isNaN(monto) || monto<=0){
         alert("Error: esta cancha no tiene seña definida correctamente.");
         return;
       }
 
-      if (!complejoSeleccionado) {
+      if(!complejoSeleccionado){
         alert("Falta el ID del complejo.");
         return;
       }
 
-      const ok = confirm(`Para reservar ${cancha} (${fechaISO} ${hora}) debés pagar una seña de $${monto}. ¿Deseás continuar?`);
-      if (!ok) return;
+      const ok=confirm(`Para reservar ${cancha} (${fechaISO} ${hora}) debés pagar una seña de $${monto}. ¿Deseás continuar?`);
+      if(!ok) return;
 
-      reservando = true;
+      reservando=true;
       showLoader("Redirigiendo a Mercado Pago…");
-      try {
-        const res = await fetch(`${backendUrl}/crear-preferencia`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            // ✅ pasamos datos reales (no sólo clave legacy)
-            complejoId: complejoSeleccionado,
+      try{
+        const res=await fetch(`${backendUrl}/crear-preferencia`,{
+          method:"POST",
+          headers:{ "Content-Type":"application/json" },
+          body:JSON.stringify({
+            complejoId:complejoSeleccionado,
             cancha,
-            fecha: fechaISO,
+            fecha:fechaISO,
             hora,
-            titulo: `Seña ${cancha}`,
-            precio: monto,
-            nombre: nombre.trim(),
-            telefono: telefono.trim()
+            titulo:`Seña ${cancha}`,
+            precio:monto,
+            nombre:nombre.trim(),
+            telefono:telefono.trim()
           })
         });
+        const data=await res.json();
 
-        const data = await res.json();
-
-        if (res.ok && data?.init_point) {
-          try {
-            localStorage.setItem("reserva_clave", clave);
-            localStorage.setItem("reserva_nombre", nombre.trim());
-            localStorage.setItem("reserva_telefono", telefono.trim());
-          } catch (_) {}
-          window.location.href = data.init_point;
-        } else {
+        if(res.ok && data?.init_point){
+          try{
+            localStorage.setItem("reserva_clave",clave);
+            localStorage.setItem("reserva_nombre",nombre.trim());
+            localStorage.setItem("reserva_telefono",telefono.trim());
+          }catch(_){}
+          window.location.href=data.init_point;
+        }else{
           alert(data?.error || "No se pudo generar el link de pago.");
         }
-      } catch (e) {
+      }catch(e){
         alert("Error al conectar con el servidor.");
-      } finally {
+      }finally{
         hideLoader();
-        reservando = false;
+        reservando=false;
       }
     }
 
-    // Init
     window.addEventListener("DOMContentLoaded", cargarVistaComplejo);
   </script>
 
 </body>
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+</html>
