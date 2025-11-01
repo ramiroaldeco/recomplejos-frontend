@@ -505,82 +505,85 @@ function onClickReservar(td){
   </script>
 
   <!-- ===== Reservar (con cancha/fecha/hora reales) ===== -->
-  <script>
-    // Flag para evitar doble click
-    let reservando = false;
+<script>
+  // Flag para evitar doble click
+  let reservando = false;
 
-    async function reservarTurno(clave, cancha, senia, fechaISO, hora, nombre, telefono) {
-      if (reservando) return;
+  async function reservarTurno(clave, cancha, senia, fechaISO, hora, nombre, telefono) {
+    if (reservando) return;
 
-      if (!nombre || !nombre.trim() || !telefono || !telefono.trim()) {
-        alert("Ingresá tu nombre y teléfono");
-        try{
-          if(!nombre?.trim()) document.getElementById("nombre").focus();
-          else document.getElementById("telefono").focus();
-        }catch(_){}
-        return;
-      }
-
-      const monto = Number(senia);
-      if (!monto || isNaN(monto) || monto <= 0) {
-        alert("Error: esta cancha no tiene seña definida correctamente.");
-        return;
-      }
-
-      if (!complejoSeleccionado) {
-        alert("Falta el ID del complejo.");
-        return;
-      }
-
-      const ok = confirm(`Para reservar ${cancha} (${fechaISO} ${hora}) debés pagar una seña de $${monto}. ¿Deseás continuar?`);
-      if (!ok) return;
-
-      reservando = true;
-      showLoader("Redirigiendo a Mercado Pago…");
+    if (!nombre || !nombre.trim() || !telefono || !telefono.trim()) {
+      alert("Ingresá tu nombre y teléfono");
       try {
-        const res = await fetch(`${backendUrl}/crear-preferencia`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            // ✅ pasamos datos reales (no sólo clave legacy)
-            complejoId: complejoSeleccionado,
-            cancha,
-            fecha: fechaISO,      // mando ambos por compat
-            fechaISO,
-            hora,
-            titulo: `Seña ${cancha}`,
-            precio: monto,
-            senia: monto,         // compat
-            nombre: nombre.trim(),
-            telefono: telefono.trim()
-          })
-        });
-
-        const data = await res.json();
-
-        if (res.ok && data?.init_point) {
-          try {
-            localStorage.setItem("reserva_clave", clave);
-            localStorage.setItem("reserva_nombre", nombre.trim());
-            localStorage.setItem("reserva_telefono", telefono.trim());
-          } catch (_) {}
-          window.location.href = data.init_point;   // → MP real (si tenés token cargado)
-        } else {
-          console.error("crear-preferencia 400:", data);
-          alert(data?.error || "No se pudo generar el link de pago.");
-        }
-      } catch (e) {
-        console.error("crear-preferencia error:", e);
-        alert("Error al conectar con el servidor.");
-      } finally {
-        hideLoader();
-        reservando = false;
-      }
+        if (!nombre?.trim()) document.getElementById("nombre").focus();
+        else document.getElementById("telefono").focus();
+      } catch (_) {}
+      return;
     }
 
-    // Init
-    window.addEventListener("DOMContentLoaded", cargarVistaComplejo);
-  </script>
+    const monto = Number(senia);
+    if (!monto || isNaN(monto) || monto <= 0) {
+      alert("Error: esta cancha no tiene seña definida correctamente.");
+      return;
+    }
 
+    if (!complejoSeleccionado) {
+      alert("Falta el ID del complejo.");
+      return;
+    }
+
+    const ok = confirm(`Para reservar ${cancha} (${fechaISO} ${hora}) debés pagar una seña de $${monto}. ¿Deseás continuar?`);
+    if (!ok) return;
+
+    reservando = true;
+    showLoader("Redirigiendo a Mercado Pago…");
+    try {
+      const res = await fetch(`${backendUrl}/crear-preferencia`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          // ✅ Enviamos todos los datos reales; NO creamos hold en el front
+          complejoId: complejoSeleccionado,
+          cancha,
+          fecha: fechaISO,     // compat
+          fechaISO,
+          hora,
+          titulo: `Seña ${cancha}`,
+          precio: monto,
+          senia: monto,        // compat
+          nombre: nombre.trim(),
+          telefono: telefono.trim()
+        })
+      });
+
+      // Intentamos parsear; si no es JSON válido, generamos un error claro
+      let data = null;
+      try { data = await res.json(); } catch { data = null; }
+
+      if (res.ok && data?.init_point) {
+        // Guardamos solo datos útiles para completar luego (opcional)
+        try {
+          localStorage.setItem("reserva_clave", clave);
+          localStorage.setItem("reserva_nombre", nombre.trim());
+          localStorage.setItem("reserva_telefono", telefono.trim());
+        } catch (_) {}
+
+        // 👉 Redirección al checkout real de MP (el ocupado lo marcará el webhook al aprobar)
+        window.location.href = data.init_point;
+      } else {
+        console.error("crear-preferencia response:", data);
+        alert((data && data.error) ? data.error : "No se pudo generar el link de pago.");
+      }
+    } catch (e) {
+      console.error("crear-preferencia error:", e);
+      alert("Error al conectar con el servidor.");
+    } finally {
+      hideLoader();
+      reservando = false;
+    }
+  }
+// Init
+window.addEventListener("DOMContentLoaded", cargarVistaComplejo);
+</script>
 </body>
 </html>
