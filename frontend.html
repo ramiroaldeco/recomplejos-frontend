@@ -4,56 +4,181 @@
   <meta charset="UTF-8" />
   <title>Vista del Complejo</title>
   <meta name="viewport" content="width=device-width, initial-scale=1" />
+
+  <!-- Fuente -->
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&display=swap" rel="stylesheet">
+
   <style>
-    :root{--bg:#0d1512;--surface:#101915;--card:#121f19;--text:#eaf6f0;--muted:#b7c8c1;--brand:#0b8457;--brand-2:#06c184;--accent:#b6ff6b;--ring:rgba(11,132,87,.28);--border:rgba(182,255,107,.14);--shadow:0 12px 28px rgba(0,0,0,.38)}
-    *{box-sizing:border-box}body{margin:0;font-family:Inter,system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif;background:var(--bg);color:var(--text);-webkit-tap-highlight-color:rgba(255,255,255,.08);padding-left:env(safe-area-inset-left);padding-right:env(safe-area-inset-right)}
-    header{position:sticky;top:0;z-index:50;display:flex;align-items:center;gap:10px;padding:12px 16px;padding-top:calc(12px + env(safe-area-inset-top));background:rgba(18,24,21,.72);backdrop-filter:saturate(140%) blur(10px);border-bottom:1px solid var(--border);box-shadow:0 2px 14px rgba(0,0,0,.35)}
-    .back{border:0;background:#16211c;color:#eaf6f0;border:1px solid var(--border);border-radius:10px;padding:10px 12px;font-weight:600;cursor:pointer}
-    #nombreComplejo{font-weight:800;font-size:18px;flex:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-    .contenedor{max-width:1100px;margin:12px auto 24px;padding:0 12px}
-    .carrusel-container{position:relative;overflow:hidden;border-radius:14px;box-shadow:var(--shadow);background:#0f1412}
-    .carrusel-slides{display:flex;transition:transform .4s ease}
-    .carrusel-slides img{width:100%;height:clamp(200px,38vh,360px);object-fit:cover;flex-shrink:0}
-    .carrusel-btn{position:absolute;top:50%;transform:translateY(-50%);border:0;border-radius:50%;width:38px;height:38px;cursor:pointer;background:rgba(16,25,21,.75);color:#fff;backdrop-filter:blur(8px)}
-    .carrusel-btn.left{left:10px}.carrusel-btn.right{right:10px}
-    .formulario{margin:14px 0 8px;background:var(--card);border:1px solid var(--border);border-radius:14px;padding:14px;box-shadow:var(--shadow)}
-    .form-title{font-weight:700;margin:0 0 8px}
-    .row{display:flex;gap:10px}
-    .row input{flex:1;min-width:0;padding:12px;border-radius:10px;border:1px solid var(--border);background:#0f1412;color:#eaf6f0;font-size:16px;outline:none}
-    .row input:focus{box-shadow:0 0 0 3px var(--ring);border-color:#1aa774}
-    .hint{color:var(--muted);font-size:13px;margin-top:8px}
-    .card{background:var(--card);border:1px solid var(--border);border-radius:14px;box-shadow:var(--shadow);padding:10px 10px 12px;margin-top:12px}
-    .card h2{margin:4px 6px 10px;font-size:18px;color:#eaf6f0}
-    .tabla-scroll{max-height:64vh;overflow:auto;border-radius:10px;border:1px solid var(--border)}
-    table{width:100%;border-collapse:collapse;background:#0f1412;font-size:14px}
-    th,td{border:1px solid rgba(255,255,255,.06);padding:8px;text-align:center}
-    thead th{position:sticky;top:0;background:#101915;z-index:1}
-    td{color:#d8e7e1}
-    .disponible{background:linear-gradient(180deg,#d5ffd0,#b6ff6b);color:#072018;font-weight:800;cursor:pointer;border:0;min-height:44px}
-    .disponible:hover{filter:brightness(1.03)}
-    .reservado{background:#ffe5e5;color:#b00020;font-weight:700}
-    .deshabilitado{background:#1a2420;color:#8fa09a}
-    .grid-info{display:grid;gap:12px;grid-template-columns:1fr 1fr;margin-top:14px}
-    .panel{background:var(--card);border:1px solid var(--border);border-radius:14px;box-shadow:var(--shadow);padding:12px}
-    .panel h3{margin:4px 0 10px}
-    ul.servicios{list-style:none;padding:0;margin:0}
-    ul.servicios li{background:#16211c;border:1px solid var(--border);color:#cfe3da;padding:10px 12px;border-radius:10px;margin-bottom:8px}
-    #mapaIframe iframe{width:100%;height:280px;border:0;border-radius:10px}
-    #loadingOverlay{position:fixed;inset:0;z-index:9999;background:rgba(7,10,12,.55);display:none;align-items:center;justify-content:center;text-align:center}
-    #loadingOverlay.show{display:flex}.spinner{width:56px;height:56px;border-radius:50%;border:4px solid rgba(255,255,255,.25);border-top-color:var(--brand);animation:spin 1s linear infinite;margin:0 auto 12px}
-    #loadingOverlay .msg{color:#fff;font-weight:700}@keyframes spin{to{transform:rotate(360deg)}}
-    @media (max-width:900px){.row{flex-direction:column}.grid-info{grid-template-columns:1fr}.carrusel-slides img{height:clamp(180px,34vh,240px)}table{font-size:13px}th,td{padding:7px}}
-    @media (max-width:420px){table{font-size:12px}th,td{padding:6px}}
-    body::before{content:"";position:fixed;inset:-20% -10% auto -10%;height:120vh;pointer-events:none;z-index:0;background:radial-gradient(40% 35% at 15% 15%, rgba(11,132,87,.18), transparent 60%),radial-gradient(45% 40% at 85% 10%, rgba(182,255,107,.10), transparent 60%),radial-gradient(40% 35% at 80% 75%, rgba(6,193,132,.12), transparent 60%);filter:blur(30px) saturate(130%);animation:blobs 18s ease-in-out infinite alternate}
-    @keyframes blobs{0%{transform:translateY(-2%) scale(1)}100%{transform:translateY(2%) scale(1.03)}}
+    :root{
+      --bg:#0d1512;           /* base oscura que usamos en inicio */
+      --surface:#101915;
+      --card:#121f19;
+      --text:#eaf6f0;
+      --muted:#b7c8c1;
+      --brand:#0b8457;
+      --brand-2:#06c184;
+      --accent:#b6ff6b;
+      --ring:rgba(11,132,87,.28);
+      --border:rgba(182,255,107,.14);
+      --shadow:0 12px 28px rgba(0,0,0,.38);
+    }
+    *{box-sizing:border-box}
+    body{
+      margin:0;
+      font-family: Inter, system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      -webkit-tap-highlight-color: rgba(255,255,255,.08);
+      padding-left: env(safe-area-inset-left);
+      padding-right: env(safe-area-inset-right);
+    }
+
+    /* Header glass */
+    header{
+      position: sticky; top:0; z-index: 50;
+      display:flex; align-items:center; gap:10px;
+      padding: 12px 16px;
+      padding-top: calc(12px + env(safe-area-inset-top));
+      background: rgba(18,24,21,.72);
+      backdrop-filter: saturate(140%) blur(10px);
+      border-bottom: 1px solid var(--border);
+      box-shadow: 0 2px 14px rgba(0,0,0,.35);
+    }
+    .back{
+      border:0; background: #16211c; color:#eaf6f0; border:1px solid var(--border);
+      border-radius: 10px; padding:10px 12px; font-weight:600; cursor:pointer;
+    }
+    #nombreComplejo{ font-weight:800; font-size:18px; flex:1; white-space:nowrap; overflow:hidden; text-overflow:ellipsis }
+
+    /* Contenedor principal */
+    .contenedor{ max-width: 1100px; margin: 12px auto 24px; padding: 0 12px; }
+
+    /* Carrusel */
+    .carrusel-container{ position:relative; overflow:hidden; border-radius: 14px; box-shadow: var(--shadow); background:#0f1412; }
+    .carrusel-slides{ display:flex; transition: transform .4s ease; }
+    .carrusel-slides img{ width:100%; height: clamp(200px, 38vh, 360px); object-fit: cover; flex-shrink:0; }
+    .carrusel-btn{
+      position:absolute; top:50%; transform:translateY(-50%);
+      border:0; border-radius:50%; width:38px; height:38px; cursor:pointer;
+      background: rgba(16,25,21,.75); color:#fff;
+      backdrop-filter: blur(8px);
+    }
+    .carrusel-btn.left{ left:10px } .carrusel-btn.right{ right:10px }
+
+    /* Card de datos del usuario */
+    .formulario{
+      margin: 14px 0 8px;
+      background: var(--card);
+      border:1px solid var(--border);
+      border-radius: 14px;
+      padding: 14px;
+      box-shadow: var(--shadow);
+    }
+    .form-title{ font-weight:700; margin:0 0 8px }
+    .row{ display:flex; gap:10px; }
+    .row input{
+      flex:1; min-width:0;
+      padding: 12px; border-radius: 10px; border:1px solid var(--border);
+      background:#0f1412; color:#eaf6f0; font-size:16px;
+      outline:none;
+    }
+    .row input:focus{ box-shadow: 0 0 0 3px var(--ring); border-color:#1aa774 }
+    .hint{ color:var(--muted); font-size:13px; margin-top:8px }
+
+    /* Tabla de turnos */
+    .card{
+      background: var(--card);
+      border:1px solid var(--border);
+      border-radius: 14px;
+      box-shadow: var(--shadow);
+      padding: 10px 10px 12px;
+      margin-top: 12px;
+    }
+    .card h2{ margin:4px 6px 10px; font-size:18px; color:#eaf6f0 }
+    .tabla-scroll{ max-height: 64vh; overflow:auto; border-radius: 10px; border:1px solid var(--border); }
+    table{ width:100%; border-collapse: collapse; background:#0f1412; font-size:14px; }
+    th, td{ border:1px solid rgba(255,255,255,.06); padding: 8px; text-align:center; }
+    thead th{ position: sticky; top:0; background:#101915; z-index:1; }
+    td{ color:#d8e7e1 }
+
+    /* Estados (tap-friendly) */
+    .disponible{
+      background: linear-gradient(180deg, #d5ffd0, #b6ff6b);
+      color:#072018; font-weight:800; cursor:pointer;
+      border:0; min-height:44px;
+    }
+    .disponible:hover{ filter:brightness(1.03) }
+    .reservado{ background:#ffe5e5; color:#b00020; font-weight:700 }
+    .deshabilitado{ background:#1a2420; color:#8fa09a }
+    .reservando{ background:#fff2c2; color:#7a5d00; font-weight:800 }
+
+    /* Grid info (servicios + mapa) */
+    .grid-info{ display:grid; gap:12px; grid-template-columns: 1fr 1fr; margin-top: 14px; }
+    .panel{ background: var(--card); border:1px solid var(--border); border-radius: 14px; box-shadow: var(--shadow); padding: 12px; }
+    .panel h3{ margin: 4px 0 10px }
+    ul.servicios{ list-style:none; padding:0; margin:0 }
+    ul.servicios li{ background:#16211c; border:1px solid var(--border); color:#cfe3da; padding:10px 12px; border-radius:10px; margin-bottom:8px }
+    #mapaIframe iframe{ width:100%; height:280px; border:0; border-radius:10px }
+
+    /* Loader overlay */
+    #loadingOverlay{
+      position: fixed; inset:0; z-index: 9999;
+      background: rgba(7,10,12,.55);
+      display: none; align-items: center; justify-content: center; text-align:center;
+    }
+    #loadingOverlay.show{ display:flex }
+    .spinner{
+      width: 56px; height: 56px; border-radius: 50%;
+      border: 4px solid rgba(255,255,255,.25);
+      border-top-color: var(--brand);
+      animation: spin 1s linear infinite;
+      margin: 0 auto 12px;
+    }
+    #loadingOverlay .msg{ color:#fff; font-weight:700 }
+    @keyframes spin{ to { transform: rotate(360deg) } }
+
+    /* Responsive (móvil primero) */
+    @media (max-width: 900px){
+      .row{ flex-direction:column }
+      .grid-info{ grid-template-columns: 1fr }
+      .carrusel-slides img{ height: clamp(180px, 34vh, 240px); }
+      table{ font-size:13px }
+      th,td{ padding:7px }
+    }
+    @media (max-width:420px){
+      table{ font-size:12px }
+      th,td{ padding:6px }
+    }
+
+    /* Sutiles blobs del fondo (como inicio) */
+    body::before{
+      content:"";
+      position: fixed; inset:-20% -10% auto -10%;
+      height: 120vh; pointer-events:none; z-index:0;
+      background:
+        radial-gradient(40% 35% at 15% 15%, rgba(11,132,87,.18), transparent 60%),
+        radial-gradient(45% 40% at 85% 10%, rgba(182,255,107,.10), transparent 60%),
+        radial-gradient(40% 35% at 80% 75%, rgba(6,193,132,.12), transparent 60%);
+      filter: blur(30px) saturate(130%);
+      animation: blobs 18s ease-in-out infinite alternate;
+    }
+    @keyframes blobs{
+      0%{ transform: translateY(-2%) scale(1) } 100%{ transform: translateY(2%) scale(1.03) }
+    }
   </style>
 </head>
 
 <body>
-  <div id="loadingOverlay"><div><div class="spinner"></div><div class="msg" id="loadingMsg">Cargando…</div></div></div>
+
+  <!-- Loader -->
+  <div id="loadingOverlay">
+    <div>
+      <div class="spinner"></div>
+      <div class="msg" id="loadingMsg">Cargando…</div>
+    </div>
+  </div>
 
   <header>
     <button class="back" onclick="history.back()">← Inicio</button>
@@ -61,23 +186,27 @@
   </header>
 
   <div class="contenedor">
+    <!-- Carrusel -->
     <div class="carrusel-container" id="carrusel">
       <div class="carrusel-slides" id="carruselSlides"></div>
       <button class="carrusel-btn left" onclick="moverCarrusel(-1)">❮</button>
       <button class="carrusel-btn right" onclick="moverCarrusel(1)">❯</button>
     </div>
 
+    <!-- Datos del usuario -->
     <div class="formulario">
       <p class="form-title">Tus datos para reservar</p>
       <div class="row">
         <input type="text" id="nombre" placeholder="Tu nombre" autocomplete="name" enterkeyhint="next">
-        <input type="tel" id="telefono" placeholder="Tu teléfono" inputmode="tel" autocomplete="tel" enterkeyhint="done" pattern="^[0-9]{10,15}$" required>
+        <input type="tel" id="telefono" placeholder="Tu teléfono" inputmode="tel" autocomplete="tel" enterkeyhint="done" pattern="^[0-9]{6,15}$" required>
       </div>
       <p class="hint">Se usan para identificarte en la reserva y contactarte.</p>
     </div>
 
+    <!-- Tablas de turnos por cancha -->
     <div id="tablasTurnos"></div>
 
+    <!-- Info extra -->
     <div class="grid-info">
       <div class="panel">
         <h3>Servicios del complejo</h3>
@@ -90,180 +219,346 @@
     </div>
   </div>
 
-  <!-- Helpers -->
+  <!-- ===== Helpers horarios & claves ===== -->
   <script>
-    function canonDia(d){return (d||"").normalize("NFD").replace(/[\u0300-\u036f]/g,"")}
-    function getHorario(horarios,nombreDia){return horarios[nombreDia]||horarios[canonDia(nombreDia)]||{}}
-    function entre(h,desde,hasta){if(!desde||!hasta)return false;return (desde<=hasta)?(h>=desde&&h<=hasta):(h>=desde||h<=hasta)}
-    function horaEsPasada(hhmm){const [h,m]=(hhmm||"00:00").split(":").map(Number);const a=new Date();const t=new Date();t.setHours(h,m,0,0);return t<a}
-    function slugCancha(n=""){return String(n).toLowerCase().replace(/\s+/g,"").replace(/[^a-z0-9]/g,"")}
-    function ymd(d){try{return (d instanceof Date?d:new Date(d)).toISOString().slice(0,10)}catch{return""}}
+    // Normaliza el nombre del día (quita tildes) → "Miércoles" == "Miercoles"
+    function canonDia(d) {
+      return (d || "").normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+    }
+    // Busca el horario del día tolerando tildes
+    function getHorario(horarios, nombreDia) {
+      return horarios[nombreDia] || horarios[canonDia(nombreDia)] || {};
+    }
+    // ¿hora está entre [desde, hasta]? Soporta trasnoche (hasta < desde)
+    function entre(hora, desde, hasta) {
+      if (!desde || !hasta) return false;
+      return (desde <= hasta)
+        ? (hora >= desde && hora <= hasta)     // mismo día
+        : (hora >= desde || hora <= hasta);    // cruza medianoche
+    }
+    // Oculta horas pasadas del día actual
+    function horaEsPasada(hhmm) {
+      const [h, m] = (hhmm || "00:00").split(":").map(Number);
+      const ahora = new Date();
+      const t = new Date(); t.setHours(h, m, 0, 0);
+      return t < ahora;
+    }
+    // === SLUG de cancha (debe coincidir con el backend)
+    function slugCancha(nombre=""){
+      return String(nombre).toLowerCase().replace(/\s+/g,"").replace(/[^a-z0-9]/g,"");
+    }
+    // yyyy-mm-dd desde Date
+    function ymd(d){
+      try{ return (d instanceof Date? d : new Date(d)).toISOString().slice(0,10); }
+      catch{ return ""; }
+    }
   </script>
 
-  <!-- Lógica -->
+  <!-- ===== Lógica de la página ===== -->
   <script>
     const backendUrl = "https://recomplejos-backend.onrender.com";
-    const diasSemana = ["Domingo","Lunes","Martes","Miércoles","Jueves","Viernes","Sábado"];
+    const diasSemana = ["Domingo", "Lunes", "Martes", "Miércoles", "Jueves", "Viernes", "Sábado"];
     let complejoSeleccionado = "";
     let carruselIndex = 0;
 
-    function showLoader(msg="Cargando…"){const o=document.getElementById("loadingOverlay");const m=document.getElementById("loadingMsg");if(m)m.textContent=msg;if(o)o.classList.add("show")}
-    function hideLoader(){const o=document.getElementById("loadingOverlay");if(o)o.classList.remove("show")}
+    // cache y polling
+    let datosComplejo = null;
+    let cacheReservas = {};
+    let pollTimer = null;
 
-    async function cargarVistaComplejo(){
-      const params=new URLSearchParams(location.search);
-      const complejo=params.get("complejo");
-      if(!complejo){document.body.innerHTML="<h2 style='text-align:center;color:#ffb3b3'>Complejo no especificado</h2>";return}
-      complejoSeleccionado=complejo;
+    /* Loader helpers */
+    function showLoader(msg="Cargando…"){
+      const o = document.getElementById("loadingOverlay");
+      const m = document.getElementById("loadingMsg");
+      if(m) m.textContent = msg;
+      if(o) o.classList.add("show");
+    }
+    function hideLoader(){
+      const o = document.getElementById("loadingOverlay");
+      if(o) o.classList.remove("show");
+    }
+
+    async function cargarVistaComplejo() {
+      const params = new URLSearchParams(window.location.search);
+      const complejo = params.get("complejo");
+      if (!complejo) {
+        document.body.innerHTML = "<h2 style='text-align:center;color:#ffb3b3'>Complejo no especificado</h2>";
+        return;
+      }
+      complejoSeleccionado = complejo;
 
       showLoader("Cargando complejo…");
       try{
-        const r=await fetch(`${backendUrl}/datos_complejos?t=${Date.now()}`,{cache:"no-store"});
-        const raw=await r.json();
-        const datos=raw?.data||raw||{};
-        let info=datos[complejoSeleccionado]||null;
-        if(!info){
-          const hit=Object.entries(datos).find(([k])=>String(k).trim().toLowerCase()===String(complejoSeleccionado).trim().toLowerCase());
-          if(hit) info=hit[1];
+        // Traigo datos y soporto wrapper {data:...}
+        const r = await fetch(`${backendUrl}/datos_complejos?t=${Date.now()}`, { cache:"no-store" });
+        const raw = await r.json();
+        const datos = raw?.data || raw || {};
+
+        datosComplejo =
+          datos[complejoSeleccionado] ||
+          Object.entries(datos).find(([k]) =>
+            String(k).trim().toLowerCase() === String(complejoSeleccionado).trim().toLowerCase()
+          )?.[1];
+
+        if (!datosComplejo) {
+          document.body.innerHTML = "<h2 style='text-align:center;color:#ffb3b3'>Complejo no encontrado</h2>";
+          return;
         }
-        if(!info){document.body.innerHTML="<h2 style='text-align:center;color:#ffb3b3'>Complejo no encontrado</h2>";return}
 
-        document.getElementById("nombreComplejo").textContent=info.nombre||complejo;
-        document.getElementById("mapaIframe").innerHTML=info.maps||"";
+        document.getElementById("nombreComplejo").textContent = datosComplejo.nombre || complejo;
+        document.getElementById("mapaIframe").innerHTML = datosComplejo.maps || "";
 
-        const lista=document.getElementById("serviciosLista");lista.innerHTML="";
-        (info.servicios||[]).forEach(s=>{const li=document.createElement("li");li.textContent=s;lista.appendChild(li)});
+        const lista = document.getElementById("serviciosLista");
+        lista.innerHTML = "";
+        (datosComplejo?.servicios || []).forEach(s => {
+          const li = document.createElement("li");
+          li.textContent = s;
+          lista.appendChild(li);
+        });
 
-        mostrarImagenesCarrusel(info.imagenes?.length?info.imagenes:[
+        mostrarImagenesCarrusel(datosComplejo.imagenes?.length ? datosComplejo.imagenes : [
           "https://upload.wikimedia.org/wikipedia/commons/thumb/a/ac/No_image_available.svg/480px-No_image_available.svg.png"
         ]);
 
-        await cargarTurnosPorCancha(info);
-      }catch(_){document.body.innerHTML="<h2 style='text-align:center;color:#ffb3b3'>Error cargando datos del complejo</h2>";
-      }finally{hideLoader()}
+        // primera carga de reservas + render
+        await recargarReservas();
+        renderTodasLasTablas();
+
+        // polling
+        arrancarPolling();
+        document.addEventListener("visibilitychange", ()=>{ if(!document.hidden) recargarReservas().then(renderTodasLasTablas) });
+
+      }catch(_){
+        document.body.innerHTML = "<h2 style='text-align:center;color:#ffb3b3'>Error cargando datos del complejo</h2>";
+      }finally{
+        hideLoader();
+      }
     }
 
-    function mostrarImagenesCarrusel(imgs){const c=document.getElementById("carruselSlides");c.innerHTML="";imgs.forEach(src=>{const i=document.createElement("img");i.src=src;c.appendChild(i)});moverCarrusel(0)}
-    function moverCarrusel(d){const s=document.getElementById("carruselSlides");const t=s.children.length;if(!t)return;carruselIndex=(carruselIndex+d+t)%t;s.style.transform=`translateX(-${carruselIndex*100}%)`}
+    function arrancarPolling(){
+      if(pollTimer) clearInterval(pollTimer);
+      pollTimer = setInterval(async ()=>{ await recargarReservas(); renderTodasLasTablas(); }, 12000);
+    }
 
-    async function cargarTurnosPorCancha(info){
-      showLoader("Cargando turnos…");
-      const reservas=await fetch(`${backendUrl}/reservas?t=${Date.now()}`,{cache:"no-store"}).then(r=>r.json()).catch(()=>({}));
-      hideLoader();
+    async function recargarReservas(){
+      try{
+        cacheReservas = await fetch(`${backendUrl}/reservas?t=${Date.now()}`, { cache:"no-store" }).then(r => r.json());
+      }catch{ cacheReservas = {}; }
+    }
 
-      const container=document.getElementById("tablasTurnos");container.innerHTML="";
-      const canchas=info.canchas?.length?info.canchas:[{nombre:"Cancha"}];
+    function mostrarImagenesCarrusel(imagenes) {
+      const contenedor = document.getElementById("carruselSlides");
+      contenedor.innerHTML = "";
+      (imagenes || []).forEach(src => {
+        const img = document.createElement("img");
+        img.src = src;
+        contenedor.appendChild(img);
+      });
+      moverCarrusel(0);
+    }
 
-      for(const cancha of canchas){
-        const div=document.createElement("div");
-        div.className="card";
-        div.innerHTML=`
-          <h2>${cancha.nombre||"Cancha"}</h2>
+    function moverCarrusel(direccion) {
+      const slides = document.getElementById("carruselSlides");
+      const total = slides.children.length;
+      if (total === 0) return;
+      carruselIndex = (carruselIndex + direccion + total) % total;
+      slides.style.transform = `translateX(-${carruselIndex * 100}%)`;
+    }
+
+    function renderTodasLasTablas(){
+      const container = document.getElementById("tablasTurnos");
+      container.innerHTML = "";
+
+      const canchas = datosComplejo.canchas?.length ? datosComplejo.canchas : [{ nombre: "Cancha", precioTotal: "", jugadores: "", precioPorJugador: "" }];
+
+      for (const cancha of canchas) {
+        const div = document.createElement("div");
+        div.className = "card";
+        const totalCalc = cancha.precioTotal ?? (cancha.precioPorJugador && cancha.jugadores ? Number(cancha.precioPorJugador)*Number(cancha.jugadores) : null);
+        div.innerHTML = `
+          <h2>${cancha.nombre || "Cancha"}</h2>
           <p style="margin:0 8px 10px;color:var(--muted)">
-            <strong>Precio total:</strong> $${cancha.precioTotal ?? (cancha.precioPorJugador&&cancha.jugadores?Number(cancha.precioPorJugador)*Number(cancha.jugadores):"?")} &nbsp;
-            <strong>Jugadores:</strong> ${cancha.jugadores || "?"} &nbsp;
-            <strong>Precio por jugador:</strong> $${cancha.precioPorJugador || cancha.precioPP || "?"} &nbsp;
+            <strong>Precio total:</strong> ${totalCalc!=null?("$"+totalCalc):"?"} &nbsp; 
+            <strong>Jugadores:</strong> ${cancha.jugadores || "?"} &nbsp; 
+            <strong>Precio por jugador:</strong> ${cancha.precioPorJugador||cancha.precioPP?("$"+(cancha.precioPorJugador||cancha.precioPP)):"?"} &nbsp;
             ${cancha.senia ? `<strong>Seña:</strong> $${cancha.senia}` : ""}
           </p>
-          <div id="turnos-${(cancha.nombre||'Cancha').replace(/\s+/g,'_')}"></div>`;
+          <div id="turnos-${(cancha.nombre || 'Cancha').replace(/\s+/g, '_')}"></div>
+        `;
         container.appendChild(div);
-        renderTablaTurnos(info, cancha, reservas, `turnos-${(cancha.nombre||'Cancha').replace(/\s+/g,'_')}`);
+        renderTablaTurnos(cancha, `turnos-${(cancha.nombre || 'Cancha').replace(/\s+/g, '_')}`);
       }
     }
 
-    function renderTablaTurnos(info, cancha, reservas, contenedorId){
-      const horarios=info.horarios||{};
-      const hoy=new Date();
-      const cont=document.getElementById(contenedorId);
-      let html=`<div class="tabla-scroll"><table><thead><tr><th>Hora</th>`;
+    function renderTablaTurnos(cancha, contenedorId) {
+      const horarios = datosComplejo.horarios || {};
+      const hoy = new Date();
+      const container = document.getElementById(contenedorId);
+      let html = `<div class="tabla-scroll"><table><thead><tr><th>Hora</th>`;
 
-      const dias=[];
-      for(let i=0;i<7;i++){
-        const f=new Date();f.setDate(hoy.getDate()+i);
-        const nd=diasSemana[f.getDay()];
-        const dia=String(f.getDate()).padStart(2,"0");
-        const mes=String(f.getMonth()+1).padStart(2,"0");
-        dias.push({nombre:nd,fechaCorta:`${dia}/${mes}`,fechaReal:f,fechaISO:ymd(f)});
-        html+=`<th>${nd}<br>${dia}/${mes}</th>`;
+      const dias = [];
+      for (let i = 0; i < 7; i++) {
+        const fecha = new Date();
+        fecha.setDate(hoy.getDate() + i);
+        const nombreDia = diasSemana[fecha.getDay()];
+        const dia = fecha.getDate().toString().padStart(2, "0");
+        const mes = (fecha.getMonth() + 1).toString().padStart(2, "0");
+        dias.push({ nombre: nombreDia, fechaCorta: `${dia}/${mes}`, fechaReal: fecha, fechaISO: ymd(fecha) });
+        html += `<th>${nombreDia}<br>${dia}/${mes}</th>`;
       }
-      html+=`</tr></thead><tbody>`;
 
-      for(let h=0;h<24;h++){
-        const hora=`${String(h).padStart(2,"0")}:00`;
-        const mostrarFila=dias.some(d=>{const hd=getHorario(horarios,d.nombre);return entre(hora,hd.desde||"18:00",hd.hasta||"23:00")});
-        if(!mostrarFila) continue;
+      html += `</tr></thead><tbody>`;
 
-        html+=`<tr><td>${hora}</td>`;
-        for(const d of dias){
-          const hd=getHorario(horarios,d.nombre), desde=hd.desde||"18:00", hasta=hd.hasta||"23:00";
-          if(!entre(hora,desde,hasta)){html+=`<td class="deshabilitado">Cerrado</td>`;continue}
-          const esHoy=(new Date().toDateString()===d.fechaReal.toDateString());
-          if(esHoy && horaEsPasada(hora)){html+=`<td class="deshabilitado">Pasado</td>`;continue}
+      for (let h = 0; h < 24; h++) {
+        const hora = `${h.toString().padStart(2, "0")}:00`;
 
-          const clave=`${complejoSeleccionado}-${slugCancha(cancha.nombre)}-${d.fechaISO}-${hora}`;
-          if(reservas&&reservas[clave]){html+=`<td class="reservado">Reservado</td>`;continue}
+        // Mostrar la fila si al menos un día está abierto en esa hora
+        let mostrarFila = dias.some(d => {
+          const hDia = getHorario(horarios, d.nombre);
+          return entre(hora, hDia.desde || "18:00", hDia.hasta || "23:00");
+        });
+        if (!mostrarFila) continue;
 
-          html+=`<td class="disponible" onclick="reservarTurno('${clave}','${cancha.nombre}','${cancha.senia||0}','${d.fechaISO}','${hora}',document.getElementById('nombre').value,document.getElementById('telefono').value)">Reservar</td>`;
+        html += `<tr><td>${hora}</td>`;
+
+        for (const d of dias) {
+          const hDia = getHorario(horarios, d.nombre);
+          const desde = hDia.desde || "18:00";
+          const hasta = hDia.hasta || "23:00";
+
+          if (!entre(hora, desde, hasta)) {
+            html += `<td class="deshabilitado">Cerrado</td>`;
+            continue;
+          }
+
+          // Si es hoy y la hora ya pasó, deshabilito
+          const esHoy = (new Date().toDateString() === d.fechaReal.toDateString());
+          if (esHoy && horaEsPasada(hora)) {
+            html += `<td class="deshabilitado">Pasado</td>`;
+            continue;
+          }
+
+          // === CLAVE EXACTA que usa el backend:
+          // `${complex_id}-${slugCancha}-${YYYY-MM-DD}-${HH:MM}`
+          const clave = `${complejoSeleccionado}-${slugCancha(cancha.nombre)}-${d.fechaISO}-${hora}`;
+
+          if (cacheReservas && cacheReservas[clave]) {
+            html += `<td class="reservado">Reservado</td>`;
+            continue;
+          }
+
+          html += `<td class="disponible"
+                     data-clave="${clave}"
+                     data-cancha="${cancha.nombre}"
+                     data-fecha="${d.fechaISO}"
+                     data-hora="${hora}"
+                     data-senia="${cancha.senia||0}"
+                     onclick="onClickReservar(this)">Reservar</td>`;
         }
-        html+=`</tr>`;
+
+        html += `</tr>`;
       }
-      html+=`</tbody></table></div>`;
-      cont.innerHTML=html;
+
+      html += `</tbody></table></div>`;
+      container.innerHTML = html;
+    }
+
+    function onClickReservar(td){
+      const clave = td.dataset.clave;
+      const cancha = td.dataset.cancha;
+      const fechaISO = td.dataset.fecha;
+      const hora = td.dataset.hora;
+      const senia = td.dataset.senia;
+      const nombre = document.getElementById("nombre").value;
+      const telefono = document.getElementById("telefono").value;
+
+      // feedback inmediato
+      td.className = "reservando";
+      td.textContent = "Reservando…";
+
+      reservarTurno(clave, cancha, senia, fechaISO, hora, nombre, telefono)
+        .catch(()=>{})
+        .finally(()=>{ setTimeout(()=>{ recargarReservas().then(renderTodasLasTablas); }, 1500); });
     }
   </script>
 
-  <!-- Reservar -->
+  <!-- ===== Reservar (con cancha/fecha/hora reales) ===== -->
   <script>
-    let reservando=false;
-    async function reservarTurno(clave, cancha, senia, fechaISO, hora, nombre, telefono){
-      if(reservando) return;
-      if(!nombre?.trim() || !telefono?.trim()){
+    // Flag para evitar doble click
+    let reservando = false;
+
+    async function reservarTurno(clave, cancha, senia, fechaISO, hora, nombre, telefono) {
+      if (reservando) return;
+
+      if (!nombre || !nombre.trim() || !telefono || !telefono.trim()) {
         alert("Ingresá tu nombre y teléfono");
-        try{(!nombre?.trim()?document.getElementById("nombre"):document.getElementById("telefono")).focus()}catch(_){}
+        try{
+          if(!nombre?.trim()) document.getElementById("nombre").focus();
+          else document.getElementById("telefono").focus();
+        }catch(_){}
         return;
       }
-      const monto=Number(senia);
-      if(!monto||isNaN(monto)||monto<=0){alert("Esta cancha no tiene seña definida.");return}
-      if(!complejoSeleccionado){alert("Falta el ID del complejo.");return}
 
-      if(!confirm(`Para reservar ${cancha} (${fechaISO} ${hora}) debés pagar una seña de $${monto}. ¿Continuar?`)) return;
+      const monto = Number(senia);
+      if (!monto || isNaN(monto) || monto <= 0) {
+        alert("Error: esta cancha no tiene seña definida correctamente.");
+        return;
+      }
 
-      reservando=true; showLoader("Redirigiendo a Mercado Pago…");
-      try{
-        const res=await fetch(`${backendUrl}/crear-preferencia`,{
-          method:"POST",
-          headers:{"Content-Type":"application/json"},
-          body:JSON.stringify({
-            complejoId:complejoSeleccionado,
+      if (!complejoSeleccionado) {
+        alert("Falta el ID del complejo.");
+        return;
+      }
+
+      const ok = confirm(`Para reservar ${cancha} (${fechaISO} ${hora}) debés pagar una seña de $${monto}. ¿Deseás continuar?`);
+      if (!ok) return;
+
+      reservando = true;
+      showLoader("Redirigiendo a Mercado Pago…");
+      try {
+        const res = await fetch(`${backendUrl}/crear-preferencia`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            // ✅ pasamos datos reales (no sólo clave legacy)
+            complejoId: complejoSeleccionado,
             cancha,
-            fecha:fechaISO,
+            fecha: fechaISO,      // mando ambos por compat
             fechaISO,
             hora,
-            titulo:`Seña ${cancha}`,
-            precio:monto,
-            senia:monto,
-            nombre:nombre.trim(),
-            telefono:telefono.trim()
+            titulo: `Seña ${cancha}`,
+            precio: monto,
+            senia: monto,         // compat
+            nombre: nombre.trim(),
+            telefono: telefono.trim()
           })
         });
-        const data=await res.json();
-        if(res.ok && data?.init_point){
-          try{
-            localStorage.setItem("reserva_clave",clave);
-            localStorage.setItem("reserva_nombre",nombre.trim());
-            localStorage.setItem("reserva_telefono",telefono.trim());
-          }catch(_){}
-          location.href=data.init_point;
-        }else{
-          console.error("crear-preferencia 400:",data);
-          alert(data?.error||"No se pudo generar el link de pago.");
+
+        const data = await res.json();
+
+        if (res.ok && data?.init_point) {
+          try {
+            localStorage.setItem("reserva_clave", clave);
+            localStorage.setItem("reserva_nombre", nombre.trim());
+            localStorage.setItem("reserva_telefono", telefono.trim());
+          } catch (_) {}
+          window.location.href = data.init_point;   // → MP real (si tenés token cargado)
+        } else {
+          console.error("crear-preferencia 400:", data);
+          alert(data?.error || "No se pudo generar el link de pago.");
         }
-      }catch(e){
-        console.error("crear-preferencia error:",e);
+      } catch (e) {
+        console.error("crear-preferencia error:", e);
         alert("Error al conectar con el servidor.");
-      }finally{hideLoader(); reservando=false;}
+      } finally {
+        hideLoader();
+        reservando = false;
+      }
     }
+
+    // Init
     window.addEventListener("DOMContentLoaded", cargarVistaComplejo);
   </script>
+
 </body>
 </html>
