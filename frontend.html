@@ -138,6 +138,7 @@
     }
     #loadingOverlay .msg{ color:#fff; font-weight:700 }
     @keyframes spin{ to { transform: rotate(360deg) } }
+	.pendiente{ background:#fff7cc; color:#7a5d00; font-weight:800 }
 
     /* Responsive (móvil primero) */
     @media (max-width: 900px){
@@ -390,96 +391,117 @@
       }
     }
 
-    function renderTablaTurnos(cancha, contenedorId) {
-      const horarios = datosComplejo.horarios || {};
-      const hoy = new Date();
-      const container = document.getElementById(contenedorId);
-      let html = `<div class="tabla-scroll"><table><thead><tr><th>Hora</th>`;
+  function renderTablaTurnos(cancha, contenedorId) {
+  const horarios = datosComplejo.horarios || {};
+  const hoy = new Date();
+  const container = document.getElementById(contenedorId);
+  let html = `<div class="tabla-scroll"><table><thead><tr><th>Hora</th>`;
 
-      const dias = [];
-      for (let i = 0; i < 7; i++) {
-        const fecha = new Date();
-        fecha.setDate(hoy.getDate() + i);
-        const nombreDia = diasSemana[fecha.getDay()];
-        const dia = fecha.getDate().toString().padStart(2, "0");
-        const mes = (fecha.getMonth() + 1).toString().padStart(2, "0");
-        dias.push({ nombre: nombreDia, fechaCorta: `${dia}/${mes}`, fechaReal: fecha, fechaISO: ymd(fecha) });
-        html += `<th>${nombreDia}<br>${dia}/${mes}</th>`;
+  const dias = [];
+  for (let i = 0; i < 7; i++) {
+    const fecha = new Date();
+    fecha.setDate(hoy.getDate() + i);
+    const nombreDia = diasSemana[fecha.getDay()];
+    const dia = fecha.getDate().toString().padStart(2, "0");
+    const mes = (fecha.getMonth() + 1).toString().padStart(2, "0");
+    dias.push({ nombre: nombreDia, fechaCorta: `${dia}/${mes}`, fechaReal: fecha, fechaISO: ymd(fecha) });
+    html += `<th>${nombreDia}<br>${dia}/${mes}</th>`;
+  }
+
+  html += `</tr></thead><tbody>`;
+
+  for (let h = 0; h < 24; h++) {
+    const hora = `${h.toString().padStart(2, "0")}:00`;
+
+    // Mostrar la fila si al menos un día está abierto en esa hora
+    let mostrarFila = dias.some(d => {
+      const hDia = getHorario(horarios, d.nombre);
+      return entre(hora, hDia.desde || "18:00", hDia.hasta || "23:00");
+    });
+    if (!mostrarFila) continue;
+
+    html += `<tr><td>${hora}</td>`;
+
+    for (const d of dias) {
+      const hDia = getHorario(horarios, d.nombre);
+      const desde = hDia.desde || "18:00";
+      const hasta = hDia.hasta || "23:00";
+
+      if (!entre(hora, desde, hasta)) {
+        html += `<td class="deshabilitado">Cerrado</td>`;
+        continue;
       }
 
-      html += `</tr></thead><tbody>`;
+      // Si es hoy y la hora ya pasó, deshabilito
+      const esHoy = (new Date().toDateString() === d.fechaReal.toDateString());
+      if (esHoy && horaEsPasada(hora)) {
+        html += `<td class="deshabilitado">Pasado</td>`;
+        continue;
+      }
 
-      for (let h = 0; h < 24; h++) {
-        const hora = `${h.toString().padStart(2, "0")}:00`;
+      // === CLAVE EXACTA que usa el backend:
+      // `${complex_id}-${slugCancha}-${YYYY-MM-DD}-${HH:MM}`
+      const clave = `${complejoSeleccionado}-${slugCancha(cancha.nombre)}-${d.fechaISO}-${hora}`;
 
-        // Mostrar la fila si al menos un día está abierto en esa hora
-        let mostrarFila = dias.some(d => {
-          const hDia = getHorario(horarios, d.nombre);
-          return entre(hora, hDia.desde || "18:00", hDia.hasta || "23:00");
-        });
-        if (!mostrarFila) continue;
+      // Estado desde la cache de reservas
+      const r = cacheReservas ? cacheReservas[clave] : null;
+      if (r) {
+        // hold activo si no venció
+        const hu = Number(r.holdUntil || 0);
+        const holdActivo = (r.status === 'hold') && !!hu && (Date.now() < hu);
 
-        html += `<tr><td>${hora}</td>`;
-
-        for (const d of dias) {
-          const hDia = getHorario(horarios, d.nombre);
-          const desde = hDia.desde || "18:00";
-          const hasta = hDia.hasta || "23:00";
-
-          if (!entre(hora, desde, hasta)) {
-            html += `<td class="deshabilitado">Cerrado</td>`;
-            continue;
-          }
-
-          // Si es hoy y la hora ya pasó, deshabilito
-          const esHoy = (new Date().toDateString() === d.fechaReal.toDateString());
-          if (esHoy && horaEsPasada(hora)) {
-            html += `<td class="deshabilitado">Pasado</td>`;
-            continue;
-          }
-
-          // === CLAVE EXACTA que usa el backend:
-          // `${complex_id}-${slugCancha}-${YYYY-MM-DD}-${HH:MM}`
-          const clave = `${complejoSeleccionado}-${slugCancha(cancha.nombre)}-${d.fechaISO}-${hora}`;
-
-          if (cacheReservas && cacheReservas[clave]) {
-            html += `<td class="reservado">Reservado</td>`;
-            continue;
-          }
-
-          html += `<td class="disponible"
-                     data-clave="${clave}"
-                     data-cancha="${cancha.nombre}"
-                     data-fecha="${d.fechaISO}"
-                     data-hora="${hora}"
-                     data-senia="${cancha.senia||0}"
-                     onclick="onClickReservar(this)">Reservar</td>`;
+        if (r.status === 'blocked') {
+          html += `<td class="deshabilitado">Bloqueado</td>`;
+          continue;
         }
-
-        html += `</tr>`;
+        if (r.status === 'approved' || r.status === 'manual') {
+          html += `<td class="reservado">Reservado</td>`;
+          continue;
+        }
+        if (holdActivo) {
+          html += `<td class="pendiente" title="Pendiente de pago">Pendiente pago</td>`;
+          continue;
+        }
+        // Si llegó acá: pending/cancelled o hold vencido ⇒ permitir reservar
       }
 
-      html += `</tbody></table></div>`;
-      container.innerHTML = html;
+      html += `<td class="disponible"
+                 data-clave="${clave}"
+                 data-cancha="${cancha.nombre}"
+                 data-fecha="${d.fechaISO}"
+                 data-hora="${hora}"
+                 data-senia="${cancha.senia||0}"
+                 onclick="onClickReservar(this)">Reservar</td>`;
     }
 
-    function onClickReservar(td){
-      const clave = td.dataset.clave;
-      const cancha = td.dataset.cancha;
-      const fechaISO = td.dataset.fecha;
-      const hora = td.dataset.hora;
-      const senia = td.dataset.senia;
-      const nombre = document.getElementById("nombre").value;
-      const telefono = document.getElementById("telefono").value;
+    html += `</tr>`;
+  }
 
-      // feedback inmediato
-      td.className = "reservando";
-      td.textContent = "Reservando…";
+  html += `</tbody></table></div>`;
+  container.innerHTML = html;
+}
 
-      reservarTurno(clave, cancha, senia, fechaISO, hora, nombre, telefono)
-        .catch(()=>{})
-        .finally(()=>{ setTimeout(()=>{ recargarReservas().then(renderTodasLasTablas); }, 1500); });
-    }
+function onClickReservar(td){
+  const clave = td.dataset.clave;
+  const cancha = td.dataset.cancha;
+  const fechaISO = td.dataset.fecha;
+  const hora = td.dataset.hora;
+  const senia = td.dataset.senia;
+  const nombre = document.getElementById("nombre").value;
+  const telefono = document.getElementById("telefono").value;
+
+  // feedback inmediato
+  td.className = "reservando";
+  td.textContent = "Reservando…";
+
+  reservarTurno(clave, cancha, senia, fechaISO, hora, nombre, telefono)
+    .catch(()=>{})
+    .finally(()=>{
+      // refresco rápido para reflejar HOLD; luego el polling se encarga
+      setTimeout(()=>{ recargarReservas().then(renderTodasLasTablas); }, 1500);
+    });
+}
+
   </script>
 
   <!-- ===== Reservar (con cancha/fecha/hora reales) ===== -->
