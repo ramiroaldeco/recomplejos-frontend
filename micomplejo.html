@@ -393,6 +393,9 @@ input:checked + .slider:before {
     Estos datos se usan para enviar las notificaciones si activás los switches de abajo.
   </p>
 </div>
+<!-- Estado de Mercado Pago -->
+<div id="mpStatusBox" style="margin-top:10px;"></div>
+
 
 <!-- ================= Notificaciones ================= -->
 <section class="card" id="notificaciones">
@@ -436,6 +439,12 @@ input:checked + .slider:before {
     <code>✅ Reserva confirmada: {{nombre}} – {{cancha}} – {{fecha}} {{hora}} – Seña ${{monto}}</code>
   </div>
 </section>
+<div id="mpBox" class="card">
+  <h3>Mercado Pago</h3>
+  <p id="mpEstadoMini">Chequeando estado...</p>
+  <button id="btnMpConectarMini" style="display:none">Conectar MP</button>
+</div>
+
 <!-- ================================================ -->
 
       </section>
@@ -1280,7 +1289,47 @@ async function exportarExcel(){
   const nombreArchivo = `caja_${complejoActivo}_${(desde||"todo")}_${(hasta||"")}.xlsx`;
   XLSX.writeFile(wb, nombreArchivo);
 }
+const backend = "https://recomplejos-backend.onrender.com";
 
+function getComplejoId() {
+  const q = new URLSearchParams(location.search);
+  return q.get("complejo") || localStorage.getItem("complejoId") || "";
+}
+document.getElementById("btnMpConectarMini")?.addEventListener("click", async () => {
+  const complejoId = getComplejoId();
+  if (!complejoId) return alert("Elegí un complejo primero.");
+  // si querés: guardar datos de config antes de redirigir
+  location.href = `${backend}/mp/conectar?complejoId=${encodeURIComponent(complejoId)}`;
+});
+
+window.addEventListener("load", pintarEstadoMPConfig);
+/* ======== Estado de Mercado Pago en Config ======== */
+async function pintarEstadoMPConfig(complejoId){
+  try {
+    const r = await fetch(`${backend}/mp/estado?complejoId=${encodeURIComponent(complejoId)}`);
+    const j = await r.json().catch(() => ({}));
+    const box = document.getElementById("mpStatusBox");
+    if (!box) return;
+
+    if (j?.ok && j.conectado) {
+      box.innerHTML = `
+        <span class="pill ok">🟢 Mercado Pago conectado</span>
+        <button type="button" id="btnReMP" class="secondary">Reconectar</button>
+      `;
+      document.getElementById("btnReMP").onclick = () =>
+        location.href = `${backend}/mp/conectar?complejoId=${encodeURIComponent(complejoId)}`;
+    } else {
+      box.innerHTML = `
+        <span class="pill err">🔴 Mercado Pago no conectado</span>
+        <button type="button" id="btnConMP" class="secondary">Conectar MP</button>
+      `;
+      document.getElementById("btnConMP").onclick = () =>
+        location.href = `${backend}/mp/conectar?complejoId=${encodeURIComponent(complejoId)}`;
+    }
+  } catch (e) {
+    console.error("Error verificando conexión MP:", e);
+  }
+}
 </script>
 </body>
 </html>
