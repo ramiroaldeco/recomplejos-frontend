@@ -540,7 +540,7 @@ const diasSemana = ["Domingo","Lunes","Martes","Miércoles","Jueves","Viernes","
 
 let loginOK = false;
 let complejoActivo = "";              // ← se fija al hacer login
-let datosComplejos = {};
+let datosComplejos = {};              // mapa { id: { ... } }
 let datos = {};
 let reservas = {};
 
@@ -594,8 +594,9 @@ document.addEventListener("DOMContentLoaded", async ()=>{
 async function poblarComplejos(){
   try{
     const resp = await fetch(`${backendUrl}/datos_complejos`, { cache:"no-store" }).then(r=>r.json());
-    const data = resp.data || resp; // compat si el backend devuelve wrapper
-    datosComplejos = data || {};
+    const data = resp?.data || resp || {};
+    // ⚠️ Guardamos SIEMPRE el mapa entero (no lo pisamos con un complejo)
+    datosComplejos = data;
   }catch(e){
     console.error("Error cargando datos_complejos:", e);
     datosComplejos = {};
@@ -603,14 +604,21 @@ async function poblarComplejos(){
   const sel = $("#complejo");
   if (sel) {
     sel.innerHTML = '<option value="">— Seleccione su complejo —</option>';
-    Object.keys(datosComplejos).forEach(k=>{
-      const opt = document.createElement("option");
-      opt.value = k;
-      opt.textContent = datosComplejos[k]?.nombre || k;
-      sel.appendChild(opt);
-    });
+    Object.keys(datosComplejos)
+      .sort((a,b)=>a.localeCompare(b))
+      .forEach(id=>{
+        const opt = document.createElement("option");
+        const nombre = datosComplejos[id]?.nombre || "";
+        opt.value = id;
+        opt.textContent = nombre ? `${id} — ${nombre}` : id;
+        sel.appendChild(opt);
+      });
+
     const qs = new URL(location.href).searchParams.get("complejo");
     if(qs && sel.querySelector(`[value="${qs}"]`)) sel.value = qs;
+
+    // refrescar estado MP en Config al cambiar selección (si aún no se logueó)
+    sel.addEventListener("change", ()=> pintarEstadoMPConfig());
   }
 }
 
@@ -647,6 +655,9 @@ async function entrarAdmin(){
 
     // switches (ahora que el DOM ya está)
     initNotificaciones();
+
+    // MP estado en Config ya con el complejo logueado
+    pintarEstadoMPConfig();
 
     /* Analíticas defaults */
     const anaDesde = $("#anaDesde");
@@ -702,7 +713,6 @@ async function initNotificaciones(){
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ notif_email: swEmail.checked })
       });
-      // opcional: alert("Preferencia guardada ✅");
     } catch (e) {
       console.error("No se pudo guardar la preferencia de email:", e);
       alert("Error al guardar la preferencia de email");
@@ -757,6 +767,7 @@ async function cargarReservas(){
   }
   return reservas;
 }
+
 /* ===================== Config → Canchas ===================== */
 function pintarCanchas(arr){
   const cont = $("#listaCanchas"); if(!cont) return; cont.innerHTML = "";
@@ -836,6 +847,7 @@ async function guardarHorarios(){
   await fetch(`${backendUrl}/guardarDatos`,{ method:"POST", headers:{ "Content-Type":"application/json" }, body: JSON.stringify(all) });
   alert("Horarios guardados.");
 }
+
 /* ===================== Contacto del dueño (guardar en DB) ===================== */
 async function guardarContactoDueno() {
   if (!complejoActivo) { alert("Primero iniciá sesión."); return; }
@@ -865,7 +877,7 @@ async function guardarContactoDueno() {
     alert("No se pudo guardar el contacto.");
   }
 }
-/* ===================== Contacto del dueño ===================== */
+
 /* ===================== Contacto del dueño (cargar desde DB) ===================== */
 async function pintarContactoDueno() {
   const w = document.getElementById("ownerWhats");
@@ -894,6 +906,7 @@ async function pintarContactoDueno() {
     e.value = datos?.emailDueño   || "";
   }
 }
+
 /* ===================== Teléfono helpers ===================== */
 function normalizarTelefono(raw){
   if(!raw) return "";
@@ -1289,27 +1302,37 @@ async function exportarExcel(){
   const nombreArchivo = `caja_${complejoActivo}_${(desde||"todo")}_${(hasta||"")}.xlsx`;
   XLSX.writeFile(wb, nombreArchivo);
 }
+
+/* ======== Estado de Mercado Pago (minibox en Config) ======== */
 const backend = "https://recomplejos-backend.onrender.com";
 
 function getComplejoId() {
+  // prioridad: logueado > select > query/localStorage antiguo
+  if (complejoActivo) return complejoActivo;
+  const sel = document.getElementById("complejo");
+  if (sel && sel.value) return sel.value;
   const q = new URLSearchParams(location.search);
-  return q.get("complejo") || localStorage.getItem("complejoId") || "";
+  return q.get("complejo") || localStorage.getItem("complejoId") || localStorage.getItem("miComplejoId") || "";
 }
+
 document.getElementById("btnMpConectarMini")?.addEventListener("click", async () => {
-  const complejoId = getComplejoId();
-  if (!complejoId) return alert("Elegí un complejo primero.");
-  // si querés: guardar datos de config antes de redirigir
-  location.href = `${backend}/mp/conectar?complejoId=${encodeURIComponent(complejoId)}`;
+  const id = getComplejoId();
+  if (!id) return alert("Elegí un complejo primero.");
+  location.href = `${backend}/mp/conectar?complejoId=${encodeURIComponent(id)}`;
 });
 
-window.addEventListener("load", pintarEstadoMPConfig);
-/* ======== Estado de Mercado Pago en Config ======== */
-async function pintarEstadoMPConfig(complejoId){
+window.addEventListener("load", ()=> pintarEstadoMPConfig());
+
+async function pintarEstadoMPConfig(){
+  const complejoId = getComplejoId();
+  const box = document.getElementById("mpStatusBox");
+  if (!box || !complejoId) {
+    if (box) box.innerHTML = `<span class="pill err">Seleccioná un complejo para ver el estado de MP</span>`;
+    return;
+  }
   try {
     const r = await fetch(`${backend}/mp/estado?complejoId=${encodeURIComponent(complejoId)}`);
     const j = await r.json().catch(() => ({}));
-    const box = document.getElementById("mpStatusBox");
-    if (!box) return;
 
     if (j?.ok && j.conectado) {
       box.innerHTML = `
