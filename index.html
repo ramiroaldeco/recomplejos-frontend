@@ -11,6 +11,35 @@
   let ciudadSeleccionadaCoords = null;
   let complejos = [];
 
+/* --- Despertar backend sin bloquear la UI --- */
+async function wakeBackend(maxMs = 12000) {
+  const spinner = document.getElementById("serverSpinner"); // tu círculo/loader
+  const msg     = document.getElementById("serverSpinnerMsg"); // “Iniciando servidor…”
+  const abort   = new AbortController();
+  const t = setTimeout(() => abort.abort(), maxMs);
+
+  try {
+    // 1) ping rápido (no confíes en cache)
+    await fetch(`${backendUrl}/healthz?t=${Date.now()}`, { cache: "no-store", signal: abort.signal })
+      .catch(()=>{});
+    // 2) ping alternativo: cualquier GET que tengas siempre on
+    await fetch(`${backendUrl}/datos_complejos?t=${Date.now()}`, { cache: "no-store", signal: abort.signal })
+      .catch(()=>{});
+  } catch(_) {}
+  clearTimeout(t);
+
+  // ocultar spinner sí o sí
+  if (spinner) spinner.style.display = "none";
+  if (msg)     msg.textContent = "";
+}
+
+// arranca apenas carga el DOM (no bloquea)
+document.addEventListener("DOMContentLoaded", () => {
+  // si no existen esos IDs no pasa nada
+  wakeBackend(); // se auto-oculta a los ~12s aunque Render tarde
+});
+
+
   function autocompletarCiudad() {
     const input = document.getElementById("ciudad");
     const lista = document.getElementById("sugerencias");
@@ -86,15 +115,26 @@
     // 👇 compatibilidad: si el backend devuelve con wrapper de debug, uso resp.data
     const datos = resp.data || resp;
 
-    // armo la lista de complejos
-    const complejos = Object.entries(datos).map(([clave, info]) => ({
-      nombre: info.nombre || clave,
-      ciudad: info.ciudad || "Sin ciudad",
-      lat: info.lat,
-      lng: info.lng,
-      deporte: "futbol",
-      link: `frontend.html?complejo=${clave}`
-    }));
+    // 👇 si viene algo raro, evitá romper
+if (!datos || typeof datos !== "object") {
+  console.warn("datos_complejos inválido:", datos);
+  lista.innerHTML = "<p style='grid-column:1/-1;color:#b42318;text-align:center'>Respuesta inválida del servidor.</p>";
+  hideLoader();
+  return;
+}
+
+// filtrar nulos/valores no-objeto
+const paresValidos = Object.entries(datos).filter(([, info]) => info && typeof info === "object");
+
+const complejos = paresValidos.map(([clave, info]) => ({
+  nombre: info?.nombre || clave,
+  ciudad: info?.ciudad || "Sin ciudad",
+  lat: info?.lat ?? null,
+  lng: info?.lng ?? null,
+  deporte: "futbol",
+  link: `frontend.html?complejo=${clave}`
+}));
+
 
     // filtro por deporte (por ahora todos "futbol")
     let resultados = complejos.filter(c => c.deporte === deporte);
