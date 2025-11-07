@@ -5,40 +5,33 @@
   <title>Reserva tu cancha</title>
   <meta name="viewport" content="width=device-width, initial-scale=1">
 
-  <script>
+<script>
   const token = "pk.eyJ1IjoicmFtaXJvb28iLCJhIjoiY21jeGkwdG5jMGMyNDJsb2t6aDdycjV5cSJ9.go0w61Fx98bfHbp_V4K0pg";
   const backendUrl = "https://recomplejos-backend.onrender.com";
+
   let ciudadSeleccionadaCoords = null;
-  let complejos = [];
 
-/* --- Despertar backend sin bloquear la UI --- */
-async function wakeBackend(maxMs = 12000) {
-  const spinner = document.getElementById("serverSpinner"); // tu círculo/loader
-  const msg     = document.getElementById("serverSpinnerMsg"); // “Iniciando servidor…”
-  const abort   = new AbortController();
-  const t = setTimeout(() => abort.abort(), maxMs);
+  /* --- Despertar backend sin bloquear la UI --- */
+  async function wakeBackend(maxMs = 12000) {
+    const spinner = document.getElementById("serverSpinner"); // opcional
+    const msg     = document.getElementById("serverSpinnerMsg"); // opcional
+    const abort   = new AbortController();
+    const t = setTimeout(() => abort.abort(), maxMs);
 
-  try {
-    // 1) ping rápido (no confíes en cache)
-    await fetch(`${backendUrl}/healthz?t=${Date.now()}`, { cache: "no-store", signal: abort.signal })
-      .catch(()=>{});
-    // 2) ping alternativo: cualquier GET que tengas siempre on
-    await fetch(`${backendUrl}/datos_complejos?t=${Date.now()}`, { cache: "no-store", signal: abort.signal })
-      .catch(()=>{});
-  } catch(_) {}
-  clearTimeout(t);
+    try {
+      // Usá / (ya existe) para el ping
+      await fetch(`${backendUrl}/?t=${Date.now()}`, { cache: "no-store", signal: abort.signal }).catch(()=>{});
+      await fetch(`${backendUrl}/datos_complejos?t=${Date.now()}`, { cache: "no-store", signal: abort.signal }).catch(()=>{});
+    } catch(_) {}
+    clearTimeout(t);
+    if (spinner) spinner.style.display = "none";
+    if (msg)     msg.textContent = "";
+  }
 
-  // ocultar spinner sí o sí
-  if (spinner) spinner.style.display = "none";
-  if (msg)     msg.textContent = "";
-}
-
-// arranca apenas carga el DOM (no bloquea)
-document.addEventListener("DOMContentLoaded", () => {
-  // si no existen esos IDs no pasa nada
-  wakeBackend(); // se auto-oculta a los ~12s aunque Render tarde
-});
-
+  document.addEventListener("DOMContentLoaded", () => {
+    wakeBackend();              // precalienta Render
+    buscarCanchas();            // carga resultados apenas entra
+  });
 
   function autocompletarCiudad() {
     const input = document.getElementById("ciudad");
@@ -59,7 +52,7 @@ document.addEventListener("DOMContentLoaded", () => {
           li.textContent = lugar.place_name;
           li.onclick = () => {
             input.value = lugar.text;
-            ciudadSeleccionadaCoords = lugar.center;
+            ciudadSeleccionadaCoords = lugar.center; // [lng, lat]
             lista.innerHTML = "";
           };
           lista.appendChild(li);
@@ -94,96 +87,90 @@ document.addEventListener("DOMContentLoaded", () => {
       showLoader("Iniciando servidor…");
       const r = await fetch(`${backendUrl}/datos_complejos?t=${Date.now()}`, { cache: "no-store" });
       await r.json();
-    }catch(_){/* noop */}
+    }catch(_){}
     hideLoader();
   }
   window.addEventListener("load", prewarmBackend);
 
-  /* ===== Buscar canchas (misma lógica + loader) ===== */
- async function buscarCanchas() {
-  const lista = document.getElementById("listaCanchas");
-  lista.innerHTML = "";
+  /* ===== Buscar canchas (lee DB y pinta) ===== */
+  async function buscarCanchas() {
+    const lista = document.getElementById("listaCanchas");
+    const deporte = document.getElementById("deporte")?.value || "futbol";
+    lista.innerHTML = "";
+    showLoader("Buscando canchas…");
 
-  const deporte = document.getElementById("deporte").value;
+    try {
+      const res  = await fetch(`${backendUrl}/datos_complejos?t=${Date.now()}`, { cache: "no-store" });
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const resp = await res.json();
+      const datos = resp?.data || resp;
 
-  showLoader("Buscando canchas…");
-  try {
-    // pedimos los complejos al backend
-    const res = await fetch(`${backendUrl}/datos_complejos?t=${Date.now()}`, { cache: "no-store" });
-    const resp = await res.json();
+      if (!datos || typeof datos !== "object") {
+        lista.innerHTML = "<p style='grid-column:1/-1;color:#b42318;text-align:center'>Respuesta inválida del servidor.</p>";
+        return;
+      }
 
-    // 👇 compatibilidad: si el backend devuelve con wrapper de debug, uso resp.data
-    const datos = resp.data || resp;
+      // Normalizo a array y filtro nulos
+      const paresValidos = Object.entries(datos).filter(([, info]) => info && typeof info === "object");
 
-    // 👇 si viene algo raro, evitá romper
-if (!datos || typeof datos !== "object") {
-  console.warn("datos_complejos inválido:", datos);
-  lista.innerHTML = "<p style='grid-column:1/-1;color:#b42318;text-align:center'>Respuesta inválida del servidor.</p>";
-  hideLoader();
-  return;
-}
+      const complejos = paresValidos.map(([clave, info]) => ({
+        id: info.id || clave,
+        nombre: info.nombre || info.name || clave,
+        ciudad: info.ciudad || info.city || "Sin ciudad",
+        lat: info.lat ?? null,
+        lng: info.lng ?? null,
+        deporte: "futbol",
+        link: `frontend.html?complejo=${encodeURIComponent(clave)}`
+      }));
 
-// filtrar nulos/valores no-objeto
-const paresValidos = Object.entries(datos).filter(([, info]) => info && typeof info === "object");
+      // filtro por deporte (hoy todos futbol)
+      let resultados = complejos.filter(c => c.deporte === deporte);
 
-const complejos = paresValidos.map(([clave, info]) => ({
-  nombre: info?.nombre || clave,
-  ciudad: info?.ciudad || "Sin ciudad",
-  lat: info?.lat ?? null,
-  lng: info?.lng ?? null,
-  deporte: "futbol",
-  link: `frontend.html?complejo=${clave}`
-}));
+      // orden por distancia si hay ciudad seleccionada
+      if (ciudadSeleccionadaCoords) {
+        const [lng, lat] = ciudadSeleccionadaCoords;
+        resultados.forEach(c => {
+          if (c.lat != null && c.lng != null) {
+            c.distancia = calcularDistancia(lat, lng, c.lat, c.lng);
+          }
+        });
+        resultados.sort((a, b) => (a.distancia ?? Infinity) - (b.distancia ?? Infinity));
+      }
 
+      // render
+      if (!resultados.length) {
+        lista.innerHTML = "<p style='grid-column:1/-1;color:#8a8f98;text-align:center'>No hay complejos registrados.</p>";
+        return;
+      }
 
-    // filtro por deporte (por ahora todos "futbol")
-    let resultados = complejos.filter(c => c.deporte === deporte);
-
-    // orden por distancia si hay ciudad seleccionada
-    if (ciudadSeleccionadaCoords) {
-      const [lng, lat] = ciudadSeleccionadaCoords;
       resultados.forEach(c => {
-        if (c.lat != null && c.lng != null) {
-          c.distancia = calcularDistancia(lat, lng, c.lat, c.lng);
-        }
+        const div = document.createElement("div");
+        div.className = "club-card";
+        div.innerHTML = `<h3>${c.nombre}</h3><p>${c.ciudad}</p>`;
+        div.onclick = () => window.location.href = c.link;
+        lista.appendChild(div);
       });
-      resultados.sort((a, b) => (a.distancia ?? Infinity) - (b.distancia ?? Infinity));
-    }
 
-    // render de los resultados
-    resultados.forEach(c => {
-      const div = document.createElement("div");
-      div.className = "club-card";
-      div.innerHTML = `<h3>${c.nombre}</h3><p>${c.ciudad}</p>`;
-      div.onclick = () => window.location.href = c.link;
-      lista.appendChild(div);
-    });
-
-    if (resultados.length === 0) {
-      lista.innerHTML = "<p style='grid-column:1/-1;color:#8a8f98;text-align:center'>No hay complejos registrados.</p>";
+    } catch (error) {
+      console.error("Error al cargar complejos:", error);
+      lista.innerHTML = "<p style='grid-column:1/-1;color:#b42318;text-align:center'>Error al cargar complejos desde el servidor.</p>";
+    } finally {
+      hideLoader();
     }
-  } catch (error) {
-    console.error("Error al cargar complejos:", error);
-    lista.innerHTML = "<p style='grid-column:1/-1;color:#b42318;text-align:center'>Error al cargar complejos desde el servidor.</p>";
-  } finally {
-    hideLoader();
   }
-}
+
   /* ==== Menú móvil ==== */
   function toggleMenu(){ document.getElementById('mobileMenu').classList.toggle('open'); }
   function closeMenu(){ document.getElementById('mobileMenu').classList.remove('open'); }
 
-  /* ==== Usar mi ubicación (auto-completa ciudad) ==== */
+  /* ==== Usar mi ubicación ==== */
   async function usarMiUbicacion(){
     if(!navigator.geolocation){ alert('Tu dispositivo no permite geolocalización'); return; }
     showLoader('Obteniendo tu ubicación…');
-
     navigator.geolocation.getCurrentPosition(async pos=>{
       try{
         const { latitude: lat, longitude: lon } = pos.coords;
-        ciudadSeleccionadaCoords = [lon, lat];  // lo que ya usa tu lógica
-
-        // Reverse geocoding a ciudad con Mapbox
+        ciudadSeleccionadaCoords = [lon, lat];
         const r = await fetch(`https://api.mapbox.com/geocoding/v5/mapbox.places/${lon},${lat}.json?access_token=${token}&types=place&limit=1`);
         const j = await r.json();
         const place = (j.features && j.features[0] && j.features[0].text) || 'Mi ubicación';
@@ -194,8 +181,8 @@ const complejos = paresValidos.map(([clave, info]) => ({
     }, err => { console.warn(err); hideLoader(); alert('No pudimos obtener la ubicación.'); }, { enableHighAccuracy:true, timeout:10000 });
   }
 
-  /* ==== Scroll suave a resultados tras buscar ==== */
-  const _oldBuscar = buscarCanchas; // preservo tu función
+  /* ==== Scroll suave después de buscar ==== */
+  const _oldBuscar = buscarCanchas;
   buscarCanchas = async function(){
     await _oldBuscar();
     const lista = document.getElementById('listaCanchas');
@@ -204,7 +191,6 @@ const complejos = paresValidos.map(([clave, info]) => ({
     }
   }
 </script>
-
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&display=swap" rel="stylesheet">
