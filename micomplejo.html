@@ -535,7 +535,7 @@ let complejoId =
   ""; // fallback
 
 /* ===================== Estado global & helpers ===================== */
-const backendUrl = "https://reservas-canchas-0bq5.onrender.com";
+const backendUrl = "https://recomplejos-backend.onrender.com";
 const diasSemana = ["Domingo","Lunes","Martes","Miércoles","Jueves","Viernes","Sábado"];
 
 let loginOK = false;
@@ -591,36 +591,39 @@ document.addEventListener("DOMContentLoaded", async ()=>{
   document.getElementById("fechaDia").addEventListener("change", renderDia);
 });
 
-async function poblarComplejos(){
-  try{
-    const resp = await fetch(`${backendUrl}/datos_complejos`, { cache:"no-store" }).then(r=>r.json());
-    const data = resp?.data || resp || {};
-    // ⚠️ Guardamos SIEMPRE el mapa entero (no lo pisamos con un complejo)
-    datosComplejos = data;
-  }catch(e){
-    console.error("Error cargando datos_complejos:", e);
-    datosComplejos = {};
-  }
-  const sel = $("#complejo");
-  if (sel) {
-    sel.innerHTML = '<option value="">— Seleccione su complejo —</option>';
-    Object.keys(datosComplejos)
-      .sort((a,b)=>a.localeCompare(b))
-      .forEach(id=>{
+async function poblarComplejos() {
+  try {
+    const res = await fetch(`${backendUrl}/datos_complejos`, { cache: "no-store" });
+    const raw = await res.json();
+
+    // Convertir a array y eliminar nulos
+    const lista = Array.isArray(raw) ? raw : Object.values(raw || {}).filter(Boolean);
+
+    // Guardar estructura limpia
+    datosComplejos = lista;
+
+    const sel = document.getElementById("complejo");
+    if (sel) {
+      sel.innerHTML = '<option value="">— Seleccione su complejo —</option>';
+      lista.forEach(c => {
         const opt = document.createElement("option");
-        const nombre = datosComplejos[id]?.nombre || "";
-        opt.value = id;
-        opt.textContent = nombre ? `${id} — ${nombre}` : id;
+        opt.value = c.id || c.nombre || c.name || "sin_id";
+        opt.textContent = c.nombre || c.name || "Sin nombre";
         sel.appendChild(opt);
       });
 
-    const qs = new URL(location.href).searchParams.get("complejo");
-    if(qs && sel.querySelector(`[value="${qs}"]`)) sel.value = qs;
+      const qs = new URL(location.href).searchParams.get("complejo");
+      if (qs && sel.querySelector(`[value="${qs}"]`)) sel.value = qs;
 
-    // refrescar estado MP en Config al cambiar selección (si aún no se logueó)
-    sel.addEventListener("change", ()=> pintarEstadoMPConfig());
+      // refrescar estado MP en Config al cambiar selección (si aún no se logueó)
+      sel.addEventListener("change", () => pintarEstadoMPConfig && pintarEstadoMPConfig());
+    }
+  } catch (e) {
+    console.error("Error cargando datos_complejos:", e);
+    datosComplejos = [];
   }
 }
+
 
 /* ===================== LOGIN estricto ===================== */
 async function entrarAdmin(){
