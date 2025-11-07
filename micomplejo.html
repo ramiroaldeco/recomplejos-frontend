@@ -535,7 +535,7 @@ let complejoId =
   ""; // fallback
 
 /* ===================== Estado global & helpers ===================== */
-const backendUrl = "https://recomplejos-backend.onrender.com";
+const backendUrl = "https://reservas-canchas-0bq5.onrender.com";
 const diasSemana = ["Domingo","Lunes","Martes","Miércoles","Jueves","Viernes","Sábado"];
 
 let loginOK = false;
@@ -892,7 +892,7 @@ async function pintarContactoDueno() {
 
     // Completa los inputs
     w.value = d.owner_phone || "";
-    e.value = d.owner_email || "";
+    e.value = d.owner_email || ""
 
     // Actualiza el switch visible (Recibir por Email)
     const swEmail = document.getElementById("swEmail") || document.getElementById("notifEmail");
