@@ -19,7 +19,7 @@
     const t = setTimeout(() => abort.abort(), maxMs);
 
     try {
-      // Usá / (ya existe) para el ping
+      // Ping rápido para precalentar Render
       await fetch(`${backendUrl}/?t=${Date.now()}`, { cache: "no-store", signal: abort.signal }).catch(()=>{});
       await fetch(`${backendUrl}/datos_complejos?t=${Date.now()}`, { cache: "no-store", signal: abort.signal }).catch(()=>{});
     } catch(_) {}
@@ -29,8 +29,8 @@
   }
 
   document.addEventListener("DOMContentLoaded", () => {
-    wakeBackend();              // precalienta Render
-    buscarCanchas();            // carga resultados apenas entra
+    wakeBackend();   // precalienta Render
+    buscarCanchas(); // carga resultados apenas entra
   });
 
   function autocompletarCiudad() {
@@ -38,16 +38,14 @@
     const lista = document.getElementById("sugerencias");
     const query = input.value.trim();
 
-    if (query.length < 3) {
-      lista.innerHTML = "";
-      return;
-    }
+    if (!lista) return;
+    if (query.length < 3) { lista.innerHTML = ""; return; }
 
     fetch(`https://api.mapbox.com/geocoding/v5/mapbox.places/${encodeURIComponent(query)}.json?access_token=${token}&autocomplete=true&types=place&country=AR`)
       .then(res => res.json())
       .then(data => {
         lista.innerHTML = "";
-        data.features.forEach(lugar => {
+        (data.features || []).forEach(lugar => {
           const li = document.createElement("li");
           li.textContent = lugar.place_name;
           li.onclick = () => {
@@ -57,7 +55,8 @@
           };
           lista.appendChild(li);
         });
-      });
+      })
+      .catch(()=>{ /* noop */ });
   }
 
   function calcularDistancia(lat1, lon1, lat2, lon2) {
@@ -96,6 +95,8 @@
   async function buscarCanchas() {
     const lista = document.getElementById("listaCanchas");
     const deporte = document.getElementById("deporte")?.value || "futbol";
+    if (!lista) return;
+
     lista.innerHTML = "";
     showLoader("Buscando canchas…");
 
@@ -103,15 +104,17 @@
       const res  = await fetch(`${backendUrl}/datos_complejos?t=${Date.now()}`, { cache: "no-store" });
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       const resp = await res.json();
-      const datos = resp?.data || resp;
 
+      // Normalizo: puede venir {id: {...}, id2: {...}} o un array
+      let datos = resp?.data || resp;
       if (!datos || typeof datos !== "object") {
         lista.innerHTML = "<p style='grid-column:1/-1;color:#b42318;text-align:center'>Respuesta inválida del servidor.</p>";
         return;
       }
 
-      // Normalizo a array y filtro nulos
-      const paresValidos = Object.entries(datos).filter(([, info]) => info && typeof info === "object");
+      const paresValidos = Array.isArray(datos)
+        ? datos.filter(Boolean).map((info, i) => [info.id || String(i), info])
+        : Object.entries(datos).filter(([, info]) => info && typeof info === "object");
 
       const complejos = paresValidos.map(([clave, info]) => ({
         id: info.id || clave,
@@ -123,7 +126,7 @@
         link: `frontend.html?complejo=${encodeURIComponent(clave)}`
       }));
 
-      // filtro por deporte (hoy todos futbol)
+      // filtro por deporte (hoy todos futbol, pero dejamos la lógica lista)
       let resultados = complejos.filter(c => c.deporte === deporte);
 
       // orden por distancia si hay ciudad seleccionada
@@ -143,13 +146,15 @@
         return;
       }
 
+      const frag = document.createDocumentFragment();
       resultados.forEach(c => {
         const div = document.createElement("div");
         div.className = "club-card";
         div.innerHTML = `<h3>${c.nombre}</h3><p>${c.ciudad}</p>`;
         div.onclick = () => window.location.href = c.link;
-        lista.appendChild(div);
+        frag.appendChild(div);
       });
+      lista.appendChild(frag);
 
     } catch (error) {
       console.error("Error al cargar complejos:", error);
@@ -175,7 +180,7 @@
         const j = await r.json();
         const place = (j.features && j.features[0] && j.features[0].text) || 'Mi ubicación';
         const input = document.getElementById('ciudad');
-        input.value = place;
+        if (input) input.value = place;
       }catch(e){ console.error(e); }
       hideLoader();
     }, err => { console.warn(err); hideLoader(); alert('No pudimos obtener la ubicación.'); }, { enableHighAccuracy:true, timeout:10000 });
