@@ -599,9 +599,14 @@ async function poblarComplejos() {
     // Convertir a array y eliminar nulos
     const lista = Array.isArray(raw) ? raw : Object.values(raw || {}).filter(Boolean);
 
-    // Guardar estructura limpia
-    datosComplejos = lista;
+    // Guardar como MAPA por id  ← *** cambio clave ***
+    datosComplejos = {};
+    lista.forEach(c => {
+      const id = c.id || c.nombre || c.name || "sin_id";
+      datosComplejos[id] = c;
+    });
 
+    // Popular el <select>
     const sel = document.getElementById("complejo");
     if (sel) {
       sel.innerHTML = '<option value="">— Seleccione su complejo —</option>';
@@ -620,7 +625,7 @@ async function poblarComplejos() {
     }
   } catch (e) {
     console.error("Error cargando datos_complejos:", e);
-    datosComplejos = [];
+    datosComplejos = {};
   }
 }
 
@@ -762,10 +767,11 @@ async function cargarBase(){
 
 async function cargarReservas(){
   try{
-    const r = await fetch(`${backendUrl}/reservas-obj`, { cache:"no-store" });
+    // ← *** cambio: ahora llama a /reservas, que devuelve objeto { clave: datos }
+    const r = await fetch(`${backendUrl}/reservas`, { cache:"no-store" });
     reservas = await r.json();
   }catch(e){
-    console.error("No pude leer reservas-obj:", e);
+    console.error("No pude leer reservas:", e);
     reservas = {};
   }
   return reservas;
@@ -820,10 +826,16 @@ async function guardarCanchas(silent=false){
     senia:    Number(document.getElementById(`cancha_${idx}_senia`).value||0),
   }));
   datos.canchas = arr;
+
+  // Traigo TODO y mergeo esta sede en el mapa, como hacías
   const all = await fetch(`${backendUrl}/datos_complejos`).then(r=>r.json());
   all[complejoActivo] = { ...(all[complejoActivo]||{}), ...datos, canchas: arr };
-  await fetch(`${backendUrl}/guardarDatos`, { method:"POST", headers:{ "Content-Type":"application/json" }, body: JSON.stringify(all) });
+  await fetch(`${backendUrl}/guardarDatos`, {
+    method:"POST", headers:{ "Content-Type":"application/json" },
+    body: JSON.stringify(all)
+  });
   if(!silent) alert("Canchas guardadas.");
+
   const sel = $("#selCancha"); if (sel) { sel.innerHTML = ""; arr.forEach(c=> sel.appendChild(new Option(c.nombre,c.nombre))); }
   actualizarChipsPrecio();
 
@@ -847,7 +859,9 @@ async function guardarHorarios(){
   const all = await fetch(`${backendUrl}/datos_complejos`).then(r=>r.json());
   all[complejoActivo] = all[complejoActivo] || {};
   all[complejoActivo].horarios = leerHorariosForm();
-  await fetch(`${backendUrl}/guardarDatos`,{ method:"POST", headers:{ "Content-Type":"application/json" }, body: JSON.stringify(all) });
+  await fetch(`${backendUrl}/guardarDatos`,{
+    method:"POST", headers:{ "Content-Type":"application/json" }, body: JSON.stringify(all)
+  });
   alert("Horarios guardados.");
 }
 
@@ -1092,7 +1106,6 @@ async function reservarManual(kNew, kOld){
     // ✅ Refresco desde la DB y re-renderizo (siempre consistente)
     await cargarReservas();
     renderDia();
-
 
   } catch (e) {
     document.body.style.cursor = "default";
